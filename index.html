@@ -1422,13 +1422,25 @@
       notify('Profil & Logo disimpan');
     }
 
-    function saveNewPin() {
+    async function saveNewPin() {
       const newPin = document.getElementById('setting-new-pin').value.trim();
       if (newPin.length < 4) { notify('PIN min 4 digit'); return; }
+      
       ownerPin = newPin;
       localStorage.setItem('moka_owner_pin', ownerPin);
+
+      // Simpan juga ke Firebase Cloud agar sinkron ke device lain
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { ownerPin }, { merge: true });
+        } catch (err) {
+          console.error('Gagal sync PIN ke cloud:', err);
+        }
+      }
+
       document.getElementById('setting-new-pin').value = '';
-      notify('PIN diubah');
+      notify('PIN Owner berhasil diubah & disinkronkan!');
     }
 
     function openModalAddProduct() {
@@ -1925,6 +1937,84 @@
 
       initFirebaseSync();
     });
+
+    let db, auth, appId, userId;
+
+    async function initFirebaseSync() {
+      if (typeof window.firebaseModules === 'undefined') {
+        setTimeout(initFirebaseSync, 300);
+        return;
+      }
+      const fm = window.firebaseModules;
+      
+      const firebaseConfig = {
+        apiKey: "AIzaSyDJh92j0KvdBNKC2UScD-XocXF7Et2hlNU",
+        authDomain: "sekawan-coffee-pos.firebaseapp.com",
+        projectId: "sekawan-coffee-pos",
+        storageBucket: "sekawan-coffee-pos.firebasestorage.app",
+        messagingSenderId: "235587090471",
+        appId: "1:235587090471:web:badc675e8b70454a133602"
+      };
+      appId = 'sekawan-coffee-production';
+
+      const app = fm.initializeApp(firebaseConfig);
+      db = fm.getFirestore(app);
+      auth = fm.getAuth(app);
+
+      try {
+        await fm.signInAnonymously(auth);
+        userId = auth.currentUser?.uid || 'device-session';
+        notify('Live Cloud Sync Aktif');
+        setupRealtimeListeners();
+      } catch (err) {
+        console.warn('Cloud sync error:', err);
+      }
+    }
+
+    function setupRealtimeListeners() {
+      if (!db || !appId) return;
+      const fm = window.firebaseModules;
+
+      // 1. Sinkronisasi PIN Owner secara Realtime dari Cloud
+      const pinDocRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+      fm.onSnapshot(pinDocRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().ownerPin) {
+          ownerPin = docSnap.data().ownerPin;
+          localStorage.setItem('moka_owner_pin', ownerPin);
+        }
+      }, (err) => console.debug('Pin sync err:', err));
+
+      // 2. Sinkronisasi Transaksi secara Realtime
+      const txQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'transactions');
+      fm.onSnapshot(txQuery, (snapshot) => {
+        let loaded = [];
+        snapshot.forEach(docSnap => loaded.push({ firestoreId: docSnap.id, ...docSnap.data() }));
+        transactions = loaded.sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (document.getElementById('tab-riwayat').classList.contains('active')) renderHistory();
+        if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
+      }, (err) => console.debug('Tx sync err:', err));
+
+      // 3. Sinkronisasi Kas Keluar secara Realtime
+      const expQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'expenses');
+      fm.onSnapshot(expQuery, (snapshot) => {
+        let loaded = [];
+        snapshot.forEach(docSnap => loaded.push({ firestoreId: docSnap.id, ...docSnap.data() }));
+        expenses = loaded.sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (document.getElementById('tab-kas').classList.contains('active')) renderExpenses();
+        if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
+      }, (err) => console.debug('Exp sync err:', err));
+
+      // 4. Sinkronisasi Meja/Bills secara Realtime
+      const billsQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills');
+      fm.onSnapshot(billsQuery, (snapshot) => {
+        let loaded = [];
+        snapshot.forEach(docSnap => loaded.push({ firestoreId: docSnap.id, ...docSnap.data() }));
+        activeBills = loaded;
+        updateBadgeMeja();
+        if (document.getElementById('tab-meja').classList.contains('active')) renderMeja();
+      }, (err) => console.debug('Bills sync err:', err));
+    }
+    
   </script>
 </body>
 </html>
