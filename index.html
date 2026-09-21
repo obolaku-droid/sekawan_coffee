@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
- 
-  <!-- ... kode head lainnya ... -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#008289">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,9 +10,22 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
-  <title>Sekawan Coffee - Cloud POS Prototype</title>
+  <title>Sekawan Coffee - Cloud POS</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase SDK Imports -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    window.firebaseModules = {
+      initializeApp, getAuth, signInAnonymously, signInWithCustomToken,
+      getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, getDocs
+    };
+  </script>
+
   <style>
     :root {
       --primary: #008289;
@@ -134,7 +145,6 @@
       cursor: pointer;
     }
 
-    /* Left Drawer Styles */
     .drawer-overlay {
       position: absolute;
       inset: 0;
@@ -143,9 +153,7 @@
       display: none;
       backdrop-filter: blur(2px);
     }
-    .drawer-overlay.show {
-      display: block;
-    }
+    .drawer-overlay.show { display: block; }
 
     .drawer-menu {
       position: absolute;
@@ -162,10 +170,7 @@
       transition: transform 0.25s ease-in-out;
       visibility: hidden;
     }
-    .drawer-menu.show {
-      transform: translateX(0);
-      visibility: visible;
-    }
+    .drawer-menu.show { transform: translateX(0); visibility: visible; }
 
     .drawer-header {
       padding: 16px;
@@ -217,9 +222,7 @@
       font-weight: bold;
       opacity: 0;
     }
-    .drawer-badge.show {
-      opacity: 1;
-    }
+    .drawer-badge.show { opacity: 1; }
 
     .app-body {
       flex: 1;
@@ -237,9 +240,7 @@
       padding: 12px;
       flex-direction: column;
     }
-    .tab-content.active {
-      display: flex;
-    }
+    .tab-content.active { display: flex; }
 
     .cat-bar {
       display: flex;
@@ -262,16 +263,9 @@
       cursor: pointer;
       transition: all 0.2s;
     }
-    .cat-pill.active {
-      background: var(--primary);
-      color: #ffffff;
-    }
+    .cat-pill.active { background: var(--primary); color: #ffffff; }
 
-    .search-box {
-      margin-bottom: 8px;
-      position: relative;
-      flex-shrink: 0;
-    }
+    .search-box { margin-bottom: 8px; position: relative; flex-shrink: 0; }
     .search-input {
       width: 100%;
       padding: 8px 12px 8px 34px;
@@ -281,15 +275,8 @@
       font-size: 12px;
       outline: none;
     }
-    .search-input:focus {
-      border-color: var(--primary);
-    }
-    .search-icon-pos {
-      position: absolute;
-      left: 10px;
-      top: 9px;
-      color: #94a3b8;
-    }
+    .search-input:focus { border-color: var(--primary); }
+    .search-icon-pos { position: absolute; left: 10px; top: 9px; color: #94a3b8; }
 
     .product-grid {
       display: grid;
@@ -321,12 +308,7 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .prod-price {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--primary);
-      margin-top: 2px;
-    }
+    .prod-price { font-size: 10px; font-weight: 700; color: var(--primary); margin-top: 2px; }
     .btn-add {
       background: var(--primary-light);
       color: var(--primary);
@@ -360,10 +342,7 @@
       align-items: center;
       justify-content: center;
     }
-    .btn-qty.plus {
-      background: var(--primary);
-      color: #ffffff;
-    }
+    .btn-qty.plus { background: var(--primary); color: #ffffff; }
     .qty-badge {
       position: absolute;
       top: -4px;
@@ -381,11 +360,7 @@
       border: 1px solid white;
     }
 
-    .table-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
+    .table-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
     .table-box {
       aspect-ratio: 1;
       border-radius: 12px;
@@ -397,24 +372,10 @@
       cursor: pointer;
       padding: 4px;
     }
-    .table-available {
-      background: #dcfce7;
-      color: #166534;
-      border: 1px solid #bbf7d0;
-    }
-    .table-occupied {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
+    .table-available { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .table-occupied { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
-    .cart-float {
-      position: absolute;
-      bottom: 8px;
-      left: 10px;
-      right: 10px;
-      z-index: 35;
-    }
+    .cart-float { position: absolute; bottom: 8px; left: 10px; right: 10px; z-index: 35; }
     .cart-bar-inner {
       background: #0f172a;
       color: white;
@@ -447,9 +408,7 @@
       justify-content: center;
       padding: 12px;
     }
-    .modal-overlay.show {
-      display: flex;
-    }
+    .modal-overlay.show { display: flex; }
     .modal-sheet {
       background: #ffffff;
       border-radius: 20px;
@@ -526,10 +485,7 @@
       border-radius: 8px;
       cursor: pointer;
     }
-    .privasi-tab-btn.active {
-      background: var(--primary);
-      color: white;
-    }
+    .privasi-tab-btn.active { background: var(--primary); color: white; }
     .lap-pill {
       background: transparent;
       color: #64748b;
@@ -541,11 +497,7 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .lap-pill.active {
-      background: #ffffff;
-      color: var(--primary);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
+    .lap-pill.active { background: #ffffff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   </style>
 </head>
 <body>
@@ -1094,13 +1046,9 @@
     let products = JSON.parse(localStorage.getItem('moka_p')) || INITIAL_PRODUCTS;
     let maxTableNumber = Number(localStorage.getItem('moka_max_table')) || 12;
     
-    let transactions = JSON.parse(localStorage.getItem('moka_tx')) || [
-      { id: 'TRX-001', date: new Date().toISOString(), items: [{ name: 'Espresso', price: 10000, qty: 2 }], total: 20000, cash: 20000, change: 0, orderType: 'takeaway', paymentMethod: 'tunai' }
-    ];
-    let expenses = JSON.parse(localStorage.getItem('moka_exp')) || [
-      { type: 'kas', note: 'Beli Es Batu & Gula', amount: 35000, date: new Date().toISOString() }
-    ];
-    let activeBills = JSON.parse(localStorage.getItem('moka_bills')) || [];
+    let transactions = [];
+    let expenses = [];
+    let activeBills = [];
 
     let storeConfig = JSON.parse(localStorage.getItem('moka_store_config')) || { name: 'Sekawan Coffee', logo: '' };
     let ownerPin = localStorage.getItem('moka_owner_pin') || '123456';
@@ -1123,6 +1071,103 @@
       { name: 'Maulana', pct: 15 },
       { name: 'Ikram', pct: 15 }
     ];
+
+    let db, auth, appId, userId;
+
+    async function initFirebaseSync() {
+      if (typeof window.firebaseModules === 'undefined') {
+        setTimeout(initFirebaseSync, 300);
+        return;
+      }
+      const fm = window.firebaseModules;
+      
+      // Konfigurasi Firebase dari proyek Anda
+      const firebaseConfig = {
+        apiKey: "AIzaSyDJh92j0KvdBNKC2UScD-XocXF7Et2hlNU",
+        authDomain: "sekawan-coffee-pos.firebaseapp.com",
+        projectId: "sekawan-coffee-pos",
+        storageBucket: "sekawan-coffee-pos.firebasestorage.app",
+        messagingSenderId: "235587090471",
+        appId: "1:235587090471:web:badc675e8b70454a133602"
+      };
+      appId = 'sekawan-coffee-production';
+
+      const app = fm.initializeApp(firebaseConfig);
+      db = fm.getFirestore(app);
+      auth = fm.getAuth(app);
+
+      try {
+        await fm.signInAnonymously(auth);
+        userId = auth.currentUser?.uid || 'device-session';
+        notify('Live Cloud Sync Aktif');
+        setupRealtimeListeners();
+      } catch (err) {
+        console.warn('Cloud sync error:', err);
+      }
+    }
+
+    function setupRealtimeListeners() {
+      if (!db || !appId) return;
+      const fm = window.firebaseModules;
+
+      const txQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'transactions');
+      fm.onSnapshot(txQuery, (snapshot) => {
+        let loaded = [];
+        snapshot.forEach(docSnap => loaded.push({ firestoreId: docSnap.id, ...docSnap.data() }));
+        transactions = loaded.sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (document.getElementById('tab-riwayat').classList.contains('active')) renderHistory();
+        if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
+      }, (err) => console.debug('Tx sync err:', err));
+
+      const expQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'expenses');
+      fm.onSnapshot(expQuery, (snapshot) => {
+        let loaded = [];
+        snapshot.forEach(docSnap => loaded.push({ firestoreId: docSnap.id, ...docSnap.data() }));
+        expenses = loaded.sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (document.getElementById('tab-kas').classList.contains('active')) renderExpenses();
+        if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
+      }, (err) => console.debug('Exp sync err:', err));
+
+      const billsQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills');
+      fm.onSnapshot(billsQuery, (snapshot) => {
+        let loaded = [];
+        snapshot.forEach(docSnap => loaded.push({ firestoreId: docSnap.id, ...docSnap.data() }));
+        activeBills = loaded;
+        updateBadgeMeja();
+        if (document.getElementById('tab-meja').classList.contains('active')) renderMeja();
+      }, (err) => console.debug('Bills sync err:', err));
+    }
+
+    async function cloudAddDocument(collectionName, data) {
+      if (!db || !appId) {
+        if (collectionName === 'transactions') { transactions.unshift(data); }
+        else if (collectionName === 'expenses') { expenses.unshift(data); }
+        return;
+      }
+      const fm = window.firebaseModules;
+      try {
+        await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', collectionName), data);
+      } catch (err) {
+        console.error('Cloud save failed:', err);
+      }
+    }
+
+    async function cloudSyncBills() {
+      if (!db || !appId) return;
+      const fm = window.firebaseModules;
+      try {
+        const billsRef = fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills');
+        const snap = await fm.getDocs(billsRef);
+        const batchDeletions = [];
+        snap.forEach(d => batchDeletions.push(fm.deleteDoc(d.ref)));
+        await Promise.all(batchDeletions);
+        for (const bill of activeBills) {
+          await fm.addDoc(billsRef, bill);
+        }
+      } catch (err) {
+        console.error('Bills sync failed:', err);
+      }
+    }
 
     function formatRp(val) {
       return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
@@ -1350,7 +1395,6 @@
         document.getElementById('privasi-lock-view').classList.add('hidden');
         document.getElementById('privasi-content-view').classList.remove('hidden');
         renderReports();
-        notify('Berhasil masuk Area Owner');
       } else { notify('PIN Salah!'); }
     }
 
@@ -1623,18 +1667,17 @@
       document.getElementById('change-display').textContent = formatRp(Math.max(0, cash - sum));
     }
 
-    function saveActiveOrder() {
+    async function saveActiveOrder() {
       const { sum } = calculateCartTotal();
       if (sum === 0) return;
       const newBill = { id: currentBillId || 'BILL-' + Date.now(), type: orderType, table: orderTable, cartData: { ...cart }, total: sum, date: new Date().toISOString() };
       const idx = activeBills.findIndex(b => b.id === newBill.id);
       if (idx >= 0) activeBills[idx] = newBill; else activeBills.push(newBill);
-      localStorage.setItem('moka_bills', JSON.stringify(activeBills));
+      await cloudSyncBills();
       closeModalCheckout(); resetCartAndSession(); updateBadgeMeja(); switchTab('meja');
-      notify('Pesanan disimpan ke meja');
     }
 
-    function confirmPayment() {
+    async function confirmPayment() {
       const { sum } = calculateCartTotal();
       const method = document.getElementById('payment-method-select').value;
       let cash = sum;
@@ -1653,13 +1696,12 @@
       });
       const tx = { id: txId, date: new Date().toISOString(), items: itemsList, total: sum, cash, change, orderType, table: orderTable, paymentMethod: method };
       
-      transactions.unshift(tx);
-      localStorage.setItem('moka_tx', JSON.stringify(transactions));
+      await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
 
       if (currentBillId) {
         activeBills = activeBills.filter(b => b.id !== currentBillId);
-        localStorage.setItem('moka_bills', JSON.stringify(activeBills));
+        await cloudSyncBills();
       }
 
       closeModalCheckout(); resetCartAndSession(); updateBadgeMeja(); showSuccessReceipt(tx);
@@ -1715,15 +1757,14 @@
       document.getElementById('supplier-input-group').style.display = document.getElementById('exp-type').value === 'hutang' ? 'block' : 'none';
     }
 
-    function saveExpense() {
+    async function saveExpense() {
       const type = document.getElementById('exp-type').value;
       const supplier = document.getElementById('exp-supplier').value.trim();
       const note = document.getElementById('exp-note').value.trim();
       const amount = parseNumeric(document.getElementById('exp-nominal').value);
       if (!note || amount <= 0) return;
-      expenses.unshift({ type, supplier, note, amount, date: new Date().toISOString() });
-      localStorage.setItem('moka_exp', JSON.stringify(expenses));
-      closeModalExpense(); renderExpenses(); notify('Disimpan');
+      await cloudAddDocument('expenses', { type, supplier, note, amount, date: new Date().toISOString() });
+      closeModalExpense(); renderExpenses(); notify('Disimpan ke Cloud');
     }
 
     function renderExpenses() {
@@ -1823,7 +1864,7 @@
           <h3>2. Rincian Laba Rugi & Pembagian Hasil (5 Anggota)</h3>
           <table>
             <tr><th>Nama Anggota</th><th>Persentase</th><th>Nominal Pembagian</th></tr>
-            ${PROFIT_SHARING_MEMBERS.map(m => `<tr><td>${m.name}</td><td>${m.pct}%</td><td><strong>${formatRp((Math.max(0, netProfit) * m.pct) / 100)}</strong></td></tr>`).join('')}
+            ${PROFIT_SHARING_MEMBERS.map(m => `<tr><td>${m.name}</td><td>${m.pct}\%</td><td><strong>${formatRp((Math.max(0, netProfit) * m.pct) / 100)}</strong></td></tr>`).join('')}
           </table>
 
           <div class="footer-sign">
@@ -1881,6 +1922,8 @@
       renderProducts();
       updateCartDisplay();
       updateBadgeMeja();
+
+      initFirebaseSync();
     });
   </script>
 </body>
