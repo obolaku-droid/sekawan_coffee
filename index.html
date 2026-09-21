@@ -542,20 +542,20 @@
       </div>
       <h3 style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:2px;">Buka Shift Kasir Baru</h3>
       <p style="font-size:10px; color:var(--text-muted); margin-bottom:12px;">Masukkan data kasir untuk mulai bertransaksi.</p>
-      
-      <div style="text-align:left; margin-bottom:8px;">
-        <label style="font-size:10px; font-weight:600; color:var(--text-muted);">NAMA KASIR</label>
-        <input type="text" id="shift-cashier-name" placeholder="Nama Kasir..." value="Kasir Utama" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; margin-top:2px;">
-      </div>
 
       <div style="text-align:left; margin-bottom:8px;">
         <label style="font-size:10px; font-weight:600; color:var(--text-muted);">WAKTU BUKA SHIFT (REALTIME)</label>
         <input type="text" id="shift-time-display-input" readonly style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); background:#f1f5f9; font-size:12px; font-weight:bold; color:#334155; margin-top:2px;">
       </div>
 
+      <div style="text-align:left; margin-bottom:8px;">
+        <label style="font-size:10px; font-weight:600; color:var(--text-muted);">NAMA KASIR</label>
+        <input type="text" id="shift-cashier-name" placeholder="Contoh : Polem" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; margin-top:2px;">
+      </div>
+
       <div style="text-align:left; margin-bottom:14px;">
         <label style="font-size:10px; font-weight:600; color:var(--text-muted);">MODAL KAS AWAL (RP)</label>
-        <input type="text" id="shift-initial-cash" placeholder="Contoh: 500.000" value="500.000" oninput="formatRupiahInput(this)" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; font-weight:bold; margin-top:2px;">
+        <input type="text" id="shift-initial-cash" placeholder="Contoh : 500.000" oninput="formatRupiahInput(this)" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; font-weight:bold; margin-top:2px;">
       </div>
 
       <button class="btn-full btn-primary" onclick="startShift()">Mulai Shift & Buka Kasir</button>
