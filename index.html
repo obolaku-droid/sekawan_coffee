@@ -542,15 +542,15 @@
       </div>
       <h3 style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:2px;">Buka Shift Kasir Baru</h3>
       <p style="font-size:10px; color:var(--text-muted); margin-bottom:12px;">Masukkan data kasir untuk mulai bertransaksi.</p>
+      
+      <div style="text-align:left; margin-bottom:8px;">
+        <label style="font-size:10px; font-weight:600; color:var(--text-muted);">NAMA KASIR</label>
+        <input type="text" id="shift-cashier-name" placeholder="Contoh : Polem" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; margin-top:2px;">
+      </div>
 
       <div style="text-align:left; margin-bottom:8px;">
         <label style="font-size:10px; font-weight:600; color:var(--text-muted);">WAKTU BUKA SHIFT (REALTIME)</label>
         <input type="text" id="shift-time-display-input" readonly style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); background:#f1f5f9; font-size:12px; font-weight:bold; color:#334155; margin-top:2px;">
-      </div>
-
-      <div style="text-align:left; margin-bottom:8px;">
-        <label style="font-size:10px; font-weight:600; color:var(--text-muted);">NAMA KASIR</label>
-        <input type="text" id="shift-cashier-name" placeholder="Contoh : Polem" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; margin-top:2px;">
       </div>
 
       <div style="text-align:left; margin-bottom:14px;">
@@ -1291,14 +1291,17 @@
     }
 
     function startShift() {
-      const cashier = document.getElementById('shift-cashier-name').value.trim();
-      const initialCash = parseNumeric(document.getElementById('shift-initial-cash').value);
-      if (!cashier) { notify('Nama kasir wajib diisi!'); return; }
+      const cashierInput = document.getElementById('shift-cashier-name').value.trim();
+      const cashier = cashierInput || 'Polem'; // Default otomatis ke Polem jika kosong
+      
+      const cashInput = document.getElementById('shift-initial-cash').value;
+      const initialCash = cashInput ? parseNumeric(cashInput) : 500000; // Default otomatis 500.000 jika kosong
+
       currentShift = { cashier, startTime: new Date().toISOString(), initialCash };
       localStorage.setItem('moka_active_shift', JSON.stringify(currentShift));
       document.getElementById('modal-open-shift').classList.remove('show');
       checkShiftStatus();
-      notify('Shift dimulai!');
+      notify('Shift dimulai: ' + cashier);
     }
 
     function openModalCloseShift() {
