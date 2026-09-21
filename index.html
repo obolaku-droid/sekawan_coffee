@@ -16,15 +16,15 @@
   
   <!-- Firebase SDK Imports -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+  import { getFirestore, doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    window.firebaseModules = {
-      initializeApp, getAuth, signInAnonymously, signInWithCustomToken,
-      getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, getDocs
-    };
-  </script>
+  window.firebaseModules = {
+    initializeApp, getAuth, signInAnonymously,
+    getFirestore, doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, setDoc
+  };
+</script>
 
   <style>
     :root {
