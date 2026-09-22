@@ -925,7 +925,8 @@
         <label style="font-size:10px; font-weight:600;">Tipe</label>
         <select id="exp-type" onchange="toggleSupplierInput()" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
           <option value="kas">Kas Keluar (Operasional)</option>
-          <option value="hutang">Hutang Supplier</option>
+          <option value="hutang">Hutang Supplier (Tambah)</option>
+          <option value="bayar_hutang">Pelunasan Hutang (Bayar)</option>
         </select>
       </div>
       <div id="supplier-input-group" style="margin-bottom:8px; display:none;">
@@ -1384,7 +1385,7 @@
 
       // Filter data sesuai waktu shift berjalan
       const shiftTx = transactions.filter(t => new Date(t.date) >= startTime);
-      const shiftExp = expenses.filter(e => e.type === 'kas' && new Date(e.date) >= startTime);
+      const shiftExp = expenses.filter(e => (e.type === 'kas' || e.type === 'bayar_hutang') && new Date(e.date) >= startTime);
 
       // Kalkulasi Uang & Transaksi
       const modalAwal = currentShift.initialCash || 0;
@@ -1900,7 +1901,9 @@
     }
     function closeModalExpense() { document.getElementById('modal-expense').classList.remove('show'); }
     function toggleSupplierInput() {
-      document.getElementById('supplier-input-group').style.display = document.getElementById('exp-type').value === 'hutang' ? 'block' : 'none';
+      const type = document.getElementById('exp-type').value;
+      // Tampilkan input nama supplier baik saat nambah hutang atau bayar hutang
+      document.getElementById('supplier-input-group').style.display = (type === 'hutang' || type === 'bayar_hutang') ? 'block' : 'none';
     }
 
     async function saveExpense() {
@@ -1915,14 +1918,27 @@
 
     function renderExpenses() {
       let kas = 0; let hutang = 0;
-      expenses.forEach(e => { if (e.type === 'kas') kas += e.amount; if (e.type === 'hutang') hutang += e.amount; });
+      expenses.forEach(e => { 
+        if (e.type === 'kas') kas += e.amount; 
+        if (e.type === 'hutang') hutang += e.amount;
+        if (e.type === 'bayar_hutang') { 
+            kas += e.amount;     // Kas fisik laci keluar/berkurang
+            hutang -= e.amount;  // Sisa hutang ke supplier lunas/berkurang
+        }
+      });
       document.getElementById('total-kas-display').textContent = formatRp(kas);
       document.getElementById('total-hutang-display').textContent = formatRp(hutang);
-      document.getElementById('expense-container').innerHTML = expenses.map(e => `
+      
+      document.getElementById('expense-container').innerHTML = expenses.map(e => {
+        // Tentukan warna: Hutang (kuning), Pelunasan (hijau), Kas Keluar (merah)
+        let color = e.type === 'hutang' ? 'var(--warning)' : (e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)');
+        let label = e.type === 'kas' ? e.note : (e.type === 'bayar_hutang' ? `Pelunasan: ${e.supplier}` : `Hutang: ${e.supplier}`);
+        return `
         <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; font-size:11px;">
-          <div><strong>${e.type === 'hutang' ? e.supplier : e.note}</strong></div>
-          <strong style="color:${e.type === 'kas' ? 'var(--danger)' : 'var(--warning)'}">${formatRp(e.amount)}</strong>
-        </div>`).join('');
+          <div><strong>${label}</strong><br><span style="font-size:9px; color:var(--text-muted);">${e.type === 'kas' ? 'Operasional' : e.note}</span></div>
+          <strong style="color:${color}">${formatRp(e.amount)}</strong>
+        </div>`;
+      }).join('');
     }
 
     function setLapPeriod(p) {
@@ -1984,8 +2000,8 @@
 
       // Pengeluaran Saat Ini
       const currExp = expenses.filter(e => isCurr(new Date(e.date)));
-      const currKas = currExp.filter(e => e.type === 'kas').reduce((acc, e) => acc + e.amount, 0);
-      const currHutang = currExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0);
+      const currKas = currExp.filter(e => e.type === 'kas' || e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
+      const currHutang = currExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0) - currExp.filter(e => e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
 
       // Analitik ERP Details
       const sumTunai = currTx.filter(t => t.paymentMethod === 'tunai').reduce((acc, t) => acc + t.total, 0);
