@@ -813,24 +813,31 @@
 
       <div style="margin-bottom:8px;">
         <label style="font-size:10px; font-weight:600; color:var(--text-muted);">METODE PEMBAYARAN</label>
-        <select id="payment-method-select" onchange="togglePaymentFields()" style="width:100%; padding:8px; border-radius:10px; border:1px solid var(--border); font-size:12px; margin-top:2px;">
-          <option value="tunai">Tunai (Cash)</option>
-          <option value="nontunai">Non-Tunai (QRIS / Transfer)</option>
-        </select>
+        <input type="hidden" id="payment-method-hidden" value="tunai">
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button id="btn-method-tunai" onclick="selectPaymentMethod('tunai')" style="flex:1; padding:10px; border-radius:8px; border:2px solid var(--primary); background:var(--primary-light); color:var(--primary); font-size:12px; font-weight:800; cursor:pointer; transition:all 0.2s;">💵 Tunai</button>
+          <button id="btn-method-nontunai" onclick="selectPaymentMethod('nontunai')" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:#f8fafc; color:var(--text-muted); font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s;">📱 QRIS / Transfer</button>
+        </div>
       </div>
 
       <div id="checkout-cart-list" style="margin:8px 0; max-height:100px; overflow-y:auto; border-top:1px dashed var(--border); padding-top:6px; font-size:11px;"></div>
 
       <div style="display:flex; justify-content:space-between; font-weight:800; font-size:14px; margin:8px 0; border-top:1px dashed var(--border); padding-top:8px;">
-        <span>Total:</span>
-        <span id="checkout-bill-total" style="color:var(--primary);">Rp 0</span>
+        <span>Total Tagihan:</span>
+        <span id="checkout-bill-total" style="color:var(--primary); font-size:16px;">Rp 0</span>
       </div>
 
       <div id="tunai-fields-container" style="margin:8px 0;">
-        <input type="text" id="cash-given-input" placeholder="Uang Diterima (Rp)" oninput="formatRupiahInput(this); calcChange();" style="width:100%; padding:8px; border-radius:10px; border:1px solid var(--border); font-size:12px; font-weight:700;">
-        <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:6px; background:#f8fafc; padding:6px 10px; border-radius:8px;">
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+           <button onclick="setQuickCash('pas')" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:var(--primary); cursor:pointer;">Uang Pas</button>
+           <button onclick="setQuickCash(20000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:#334155; cursor:pointer;">20rb</button>
+           <button onclick="setQuickCash(50000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:#334155; cursor:pointer;">50rb</button>
+           <button onclick="setQuickCash(100000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:#334155; cursor:pointer;">100rb</button>
+        </div>
+        <input type="text" id="cash-given-input" placeholder="Uang Diterima (Rp)" oninput="formatRupiahInput(this); calcChange();" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); font-size:14px; font-weight:800; text-align:right;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-top:8px; background:#f8fafc; padding:8px 12px; border-radius:8px; font-weight:bold;">
           <span>Kembalian:</span>
-          <strong id="change-display" style="color:var(--success);">Rp 0</strong>
+          <strong id="change-display" style="color:var(--success); font-size:15px;">Rp 0</strong>
         </div>
       </div>
 
@@ -1719,22 +1726,56 @@
         return `<div style="display:flex; justify-content:space-between;"><span>${d.p.name} x${qty}</span><strong>${formatRp(d.v.price * qty)}</strong></div>`;
       }).join('');
       document.getElementById('checkout-bill-total').textContent = formatRp(sum);
-      document.getElementById('payment-method-select').value = 'tunai';
-      togglePaymentFields();
+      
+      // Default otomatis pilih Tunai & Uang Pas saat modal dibuka
+      selectPaymentMethod('tunai');
       document.getElementById('cash-given-input').value = sum.toLocaleString('id-ID');
       calcChange();
+      
       document.getElementById('checkout-order-type-display').textContent = orderType === 'dine_in' ? `Meja ${orderTable}` : 'Takeaway';
       document.getElementById('modal-checkout').classList.add('show');
     }
 
-    function togglePaymentFields() {
-      const method = document.getElementById('payment-method-select').value;
+    function selectPaymentMethod(method) {
+      document.getElementById('payment-method-hidden').value = method;
+      
+      const btnTunai = document.getElementById('btn-method-tunai');
+      const btnNontunai = document.getElementById('btn-method-nontunai');
       const tunaiFields = document.getElementById('tunai-fields-container');
+
       if (method === 'tunai') {
+        btnTunai.style.background = 'var(--primary-light)';
+        btnTunai.style.color = 'var(--primary)';
+        btnTunai.style.border = '2px solid var(--primary)';
+        
+        btnNontunai.style.background = '#f8fafc';
+        btnNontunai.style.color = 'var(--text-muted)';
+        btnNontunai.style.border = '1px solid var(--border)';
+        
         tunaiFields.style.display = 'block';
       } else {
+        btnNontunai.style.background = 'var(--primary-light)';
+        btnNontunai.style.color = 'var(--primary)';
+        btnNontunai.style.border = '2px solid var(--primary)';
+        
+        btnTunai.style.background = '#f8fafc';
+        btnTunai.style.color = 'var(--text-muted)';
+        btnTunai.style.border = '1px solid var(--border)';
+        
         tunaiFields.style.display = 'none';
       }
+    }
+
+    function setQuickCash(amount) {
+      const { sum } = calculateCartTotal();
+      const cashInput = document.getElementById('cash-given-input');
+      
+      if (amount === 'pas') {
+        cashInput.value = sum.toLocaleString('id-ID');
+      } else {
+        cashInput.value = amount.toLocaleString('id-ID');
+      }
+      calcChange(); // Update kembalian otomatis
     }
 
     function closeModalCheckout() { document.getElementById('modal-checkout').classList.remove('show'); }
@@ -1756,7 +1797,7 @@
 
     async function confirmPayment() {
       const { sum } = calculateCartTotal();
-      const method = document.getElementById('payment-method-select').value;
+      const method = document.getElementById('payment-method-hidden').value;
       let cash = sum;
       let change = 0;
 
