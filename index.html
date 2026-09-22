@@ -2211,7 +2211,36 @@
     }
 
     function shareWhatsAppReport() {
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Laporan Live ${storeConfig.name}`)}`, '_blank');
+      // Mengambil data yang sedang tampil di layar Dasbor Owner
+      const title = document.getElementById('lap-title-omzet').textContent;
+      const omzet = document.getElementById('lap-omzet').textContent;
+      const laba = document.getElementById('lap-laba').textContent;
+      const count = document.getElementById('lap-count').textContent;
+      const tunai = document.getElementById('lap-tunai').textContent;
+      const qris = document.getElementById('lap-qris').textContent;
+      const kas = document.getElementById('lap-kas').textContent;
+      const hutang = document.getElementById('lap-hutang').textContent;
+
+      // Merakit pesan teks untuk WhatsApp
+      let msg = `📊 *LAPORAN CLOUD OWNER*\n`;
+      msg += `🏪 *${storeConfig.name.toUpperCase()}*\n`;
+      msg += `📅 ${title}\n`;
+      msg += `========================\n`;
+      msg += `📈 *Omzet Total :* ${omzet} (${count} Trx)\n`;
+      msg += `💵 Tunai       : ${tunai}\n`;
+      msg += `📱 QRIS/TF     : ${qris}\n`;
+      msg += `------------------------\n`;
+      msg += `📉 *Pengeluaran:*\n`;
+      msg += `💸 Kas Keluar  : ${kas}\n`;
+      msg += `📝 Sisa Hutang : ${hutang}\n`;
+      msg += `========================\n`;
+      msg += `💰 *LABA BERSIH : ${laba}*\n`;
+      msg += `========================\n`;
+      msg += `_Dicetak otomatis dari Sistem Cloud POS_`;
+
+      // Membuka tab WhatsApp dengan pesan yang sudah dirakit
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    }
     }
     
     function downloadMonthlyReportPDF() {
