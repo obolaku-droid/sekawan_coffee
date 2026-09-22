@@ -993,10 +993,10 @@
       </div>
 
       <div style="margin-bottom:10px;">
-        <label style="font-size:10px; font-weight:600;">Atau Harga Hot / Cold</label>
+        <label style="font-size:10px; font-weight:600;">Atau Harga Hot / Ice</label>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; margin-top:2px;">
           <input type="text" id="new-prod-price-hot" placeholder="Hot" oninput="formatRupiahInput(this)" style="padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
-          <input type="text" id="new-prod-price-cold" placeholder="Cold" oninput="formatRupiahInput(this)" style="padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
+          <input type="text" id="new-prod-price-ice" placeholder="Ice" oninput="formatRupiahInput(this)" style="padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
         </div>
       </div>
 
@@ -1579,7 +1579,7 @@
       const cat = document.getElementById('new-prod-cat').value;
       const pSingle = parseNumeric(document.getElementById('new-prod-price-single').value);
       const pHot = parseNumeric(document.getElementById('new-prod-price-hot').value);
-      const pCold = parseNumeric(document.getElementById('new-prod-price-cold').value);
+      const pIce = parseNumeric(document.getElementById('new-prod-price-ice').value);
       if (!name) { notify('Nama wajib diisi'); return; }
 
       const variants = [];
@@ -1587,7 +1587,7 @@
       if (pSingle > 0) variants.push({ id: baseId + '_reg', name: 'Regular', price: pSingle });
       else {
         if (pHot > 0) variants.push({ id: baseId + '_h', name: 'Hot', price: pHot });
-        if (pCold > 0) variants.push({ id: baseId + '_c', name: 'Cold', price: pCold });
+        if (pIce > 0) variants.push({ id: baseId + '_c', name: 'Ice', price: pIce });
       }
       if (variants.length === 0) { notify('Masukkan harga'); return; }
 
