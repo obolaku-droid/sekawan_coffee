@@ -731,24 +731,52 @@
               <button class="lap-pill" onclick="setLapPeriod('bulanan')">Bulanan</button>
             </div>
 
-            <div style="background:linear-gradient(135deg, #008289, #0284c7); border-radius:14px; padding:12px; color:white; margin-bottom:10px;">
-              <div style="font-size:10px; opacity:0.9;" id="lap-title-omzet">Total Omset Live</div>
-              <div id="lap-omzet" style="font-size:20px; font-weight:800; margin:2px 0;">Rp 0</div>
-              <div id="lap-growth" style="font-size:9px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:4px; display:inline-block; margin-bottom:6px;">Status: Realtime Sync Active</div>
-              
-              <div style="display:flex; justify-content:space-between; font-size:10px; border-top:1px solid rgba(255,255,255,0.2); padding-top:6px;">
-                <span>Trx: <strong id="lap-count">0</strong></span>
-                <span>Kas Keluar: <strong id="lap-kas">Rp 0</strong></span>
+            <!-- Omset Utama & Trend Growth -->
+            <div style="background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
+              <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
+              <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
+                <div id="lap-omzet" style="font-size:24px; font-weight:800;">Rp 0</div>
+                <div id="lap-trend" style="font-size:11px; padding:3px 8px; border-radius:20px; font-weight:bold; background:rgba(255,255,255,0.2);">➖ 0%</div>
               </div>
-              <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:2px;">
-                <span>Hutang: <strong id="lap-hutang">Rp 0</strong></span>
-                <span>Laba: <strong id="lap-laba">Rp 0</strong></span>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:11px; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">
+                <div>Laba Bersih:<br><strong id="lap-laba" style="font-size:14px;">Rp 0</strong></div>
+                <div>Trx Berhasil:<br><strong id="lap-count" style="font-size:14px;">0</strong></div>
               </div>
             </div>
 
+            <!-- ERP Analitik Grid -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+              <!-- Detail Pembayaran -->
+              <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
+                <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">METODE BAYAR</div>
+                <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>💵 Tunai:</span> <strong id="lap-tunai">Rp 0</strong></div>
+                <div style="font-size:11px; display:flex; justify-content:space-between;"><span>📱 QRIS:</span> <strong id="lap-qris">Rp 0</strong></div>
+              </div>
+              <!-- Detail Pengeluaran -->
+              <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
+                <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">PENGELUARAN</div>
+                <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>Keluar:</span> <strong id="lap-kas" style="color:var(--danger)">Rp 0</strong></div>
+                <div style="font-size:11px; display:flex; justify-content:space-between;"><span>Hutang:</span> <strong id="lap-hutang" style="color:var(--warning)">Rp 0</strong></div>
+              </div>
+              <!-- Analisa Basket Size -->
+              <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
+                <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">ANALISA PESANAN</div>
+                <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>Rata2 / Trx:</span> <strong id="lap-aov" style="color:#0ea5e9">Rp 0</strong></div>
+                <div style="font-size:11px; display:flex; justify-content:space-between;"><span>Takeaway:</span> <strong id="lap-takeaway">0%</strong></div>
+              </div>
+              <!-- Top Menu -->
+              <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
+                <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">TOP 3 MENU</div>
+                <div id="lap-top-menu" style="font-size:10px; display:flex; flex-direction:column; gap:3px;">
+                  - Belum ada data
+                </div>
+              </div>
+            </div>
+
+            <!-- Pembagian Laba -->
             <div style="background:#ffffff; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:10px;">
-              <div style="font-weight:700; font-size:11px; color:#0f172a; margin-bottom:6px;">Pembagian Hasil (Laba Bersih)</div>
-              <div id="profit-sharing-list" style="display:flex; flex-direction:column; gap:4px; font-size:10px;"></div>
+              <div style="font-weight:800; font-size:11px; color:#0f172a; margin-bottom:6px; border-bottom:2px solid var(--primary); padding-bottom:4px; display:inline-block;">Pembagian Hasil (Laba Bersih)</div>
+              <div id="profit-sharing-list" style="display:flex; flex-direction:column; gap:4px; font-size:10px; margin-top:4px;"></div>
             </div>
 
             <button class="btn-full btn-wa" onclick="shareWhatsAppReport()" style="padding:8px; font-size:11px;">Kirim Laporan ke WA</button>
@@ -1910,19 +1938,88 @@
 
     function renderReports() {
       const now = new Date();
-      let fTx = transactions.filter(t => currentLapPeriod === 'harian' ? isSameDay(new Date(t.date), now) : currentLapPeriod === 'mingguan' ? isSameWeek(new Date(t.date), now) : isSameMonth(new Date(t.date), now));
-      let omzet = fTx.reduce((acc, t) => acc + t.total, 0);
-      let kas = expenses.filter(e => e.type === 'kas').reduce((acc, e) => acc + e.amount, 0);
-      let hutang = expenses.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0);
+      let prev = new Date();
 
-      document.getElementById('lap-omzet').textContent = formatRp(omzet);
-      document.getElementById('lap-count').textContent = fTx.length;
-      document.getElementById('lap-kas').textContent = formatRp(kas);
-      document.getElementById('lap-hutang').textContent = formatRp(hutang);
-      document.getElementById('lap-laba').textContent = formatRp(omzet - kas);
+      // Penentuan Waktu "Sekarang" vs "Masa Lalu"
+      let isCurr = (d) => false;
+      let isPrev = (d) => false;
 
+      if (currentLapPeriod === 'harian') {
+        prev.setDate(now.getDate() - 1);
+        isCurr = (d) => isSameDay(d, now);
+        isPrev = (d) => isSameDay(d, prev); // Bandingkan dgn Kemarin
+        document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Hari Ini)";
+      } else if (currentLapPeriod === 'mingguan') {
+        prev.setDate(now.getDate() - 7);
+        isCurr = (d) => (now - d) / (1000 * 60 * 60 * 24) <= 7 && d <= now;
+        isPrev = (d) => { const diff = (now - d) / (1000 * 60 * 60 * 24); return diff > 7 && diff <= 14; }; // Bandingkan dgn 7 hari sebelumnya
+        document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (7 Hari Terakhir)";
+      } else if (currentLapPeriod === 'bulanan') {
+        prev.setMonth(now.getMonth() - 1);
+        isCurr = (d) => isSameMonth(d, now);
+        isPrev = (d) => isSameMonth(d, prev); // Bandingkan dgn Bulan Lalu
+        document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Bulan Ini)";
+      }
+
+      // Filter Transaksi Sekarang dan Masa Lalu
+      const currTx = transactions.filter(t => isCurr(new Date(t.date)));
+      const prevTx = transactions.filter(t => isPrev(new Date(t.date)));
+
+      const currOmzet = currTx.reduce((acc, t) => acc + t.total, 0);
+      const prevOmzet = prevTx.reduce((acc, t) => acc + t.total, 0);
+
+      // Kalkulasi Tren (Panah Naik/Turun)
+      let trendHTML = '';
+      if (prevOmzet === 0 && currOmzet > 0) {
+         trendHTML = `<span style="color:#a7f3d0;">▲ Naik 100%</span>`; // Warna hijau terang
+      } else if (prevOmzet === 0 && currOmzet === 0) {
+         trendHTML = `<span style="color:#e2e8f0;">➖ 0%</span>`;
+      } else {
+         const diffPct = ((currOmzet - prevOmzet) / prevOmzet) * 100;
+         if (diffPct > 0) trendHTML = `<span style="color:#a7f3d0;">▲ Naik ${diffPct.toFixed(1)}%</span>`;
+         else if (diffPct < 0) trendHTML = `<span style="color:#fca5a5;">▼ Turun ${Math.abs(diffPct).toFixed(1)}%</span>`; // Warna merah terang
+         else trendHTML = `<span style="color:#e2e8f0;">➖ Stabil 0%</span>`;
+      }
+      document.getElementById('lap-trend').innerHTML = trendHTML;
+
+      // Pengeluaran Saat Ini
+      const currExp = expenses.filter(e => isCurr(new Date(e.date)));
+      const currKas = currExp.filter(e => e.type === 'kas').reduce((acc, e) => acc + e.amount, 0);
+      const currHutang = currExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0);
+
+      // Analitik ERP Details
+      const sumTunai = currTx.filter(t => t.paymentMethod === 'tunai').reduce((acc, t) => acc + t.total, 0);
+      const sumQris = currTx.filter(t => t.paymentMethod === 'nontunai').reduce((acc, t) => acc + t.total, 0);
+      
+      const aov = currTx.length > 0 ? (currOmzet / currTx.length) : 0; // Rata-rata per transaksi
+      const takeawayCount = currTx.filter(t => t.orderType === 'takeaway').length;
+      const takeawayPct = currTx.length > 0 ? ((takeawayCount / currTx.length) * 100).toFixed(0) : 0;
+
+      // Pencarian Top 3 Menu
+      const itemCounts = {};
+      currTx.forEach(t => {
+        t.items.forEach(i => {
+          itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty;
+        });
+      });
+      const topItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      let topMenuHTML = topItems.length === 0 ? '- Belum ada penjualan' : topItems.map((item, idx) => `<div><strong>${idx+1}.</strong> ${item[0]} (${item[1]}x)</div>`).join('');
+
+      // Update Tampilan DOM Layar
+      document.getElementById('lap-omzet').textContent = formatRp(currOmzet);
+      document.getElementById('lap-count').textContent = currTx.length;
+      document.getElementById('lap-laba').textContent = formatRp(currOmzet - currKas);
+      document.getElementById('lap-tunai').textContent = formatRp(sumTunai);
+      document.getElementById('lap-qris').textContent = formatRp(sumQris);
+      document.getElementById('lap-kas').textContent = formatRp(currKas);
+      document.getElementById('lap-hutang').textContent = formatRp(currHutang);
+      document.getElementById('lap-aov').textContent = formatRp(Math.round(aov));
+      document.getElementById('lap-takeaway').textContent = takeawayPct + '%';
+      document.getElementById('lap-top-menu').innerHTML = topMenuHTML;
+
+      // Kalkulasi Pembagian Laba
       document.getElementById('profit-sharing-list').innerHTML = PROFIT_SHARING_MEMBERS.map(m => `
-        <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, omzet - kas) * m.pct) / 100)}</strong></div>`).join('');
+        <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
     }
 
     function shareWhatsAppReport() {
