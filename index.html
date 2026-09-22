@@ -930,9 +930,15 @@
         </select>
       </div>
       <div id="supplier-input-group" style="margin-bottom:8px; display:none;">
-        <label style="font-size:10px; font-weight:600;">Nama Supplier</label>
+        <label style="font-size:10px; font-weight:600;">Nama Supplier / Pilih Hutang</label>
+        
+        <!-- Input untuk nambah hutang baru -->
         <input type="text" id="exp-supplier" placeholder="Nama Supplier..." style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
+        
+        <!-- Dropdown khusus untuk melunasi hutang -->
+        <select id="exp-hutang-dropdown" onchange="autofillPelunasan()" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; display:none;"></select>
       </div>
+      
       <div style="margin-bottom:8px;">
         <label style="font-size:10px; font-weight:600;">Keterangan</label>
         <input type="text" id="exp-note" placeholder="Keperluan..." style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
@@ -1902,8 +1908,69 @@
     function closeModalExpense() { document.getElementById('modal-expense').classList.remove('show'); }
     function toggleSupplierInput() {
       const type = document.getElementById('exp-type').value;
-      // Tampilkan input nama supplier baik saat nambah hutang atau bayar hutang
-      document.getElementById('supplier-input-group').style.display = (type === 'hutang' || type === 'bayar_hutang') ? 'block' : 'none';
+      const group = document.getElementById('supplier-input-group');
+      const inputSup = document.getElementById('exp-supplier');
+      const dropHutang = document.getElementById('exp-hutang-dropdown');
+      const noteInput = document.getElementById('exp-note');
+      const nominalInput = document.getElementById('exp-nominal');
+
+      if (type === 'kas') {
+        group.style.display = 'none';
+        inputSup.style.display = 'block';
+        dropHutang.style.display = 'none';
+      } else if (type === 'hutang') {
+        group.style.display = 'block';
+        inputSup.style.display = 'block'; // Tampilkan input ketik manual
+        dropHutang.style.display = 'none';
+        inputSup.value = '';
+        noteInput.value = '';
+        nominalInput.value = '';
+      } else if (type === 'bayar_hutang') {
+        group.style.display = 'block';
+        inputSup.style.display = 'none'; // Sembunyikan input ketik manual
+        dropHutang.style.display = 'block'; // Tampilkan pilihan hutang otomatis
+        
+        // Kalkulasi sisa hutang per supplier dari riwayat
+        let supplierBalances = {};
+        expenses.forEach(e => {
+            if(e.type === 'hutang') {
+                supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
+            } else if (e.type === 'bayar_hutang') {
+                supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount;
+            }
+        });
+
+        // Masukkan data sisa hutang ke dalam dropdown pilihan
+        let options = '<option value="">-- Pilih Hutang yang Mau Dilunasi --</option>';
+        for(const [sup, bal] of Object.entries(supplierBalances)) {
+            if(bal > 0) {
+                options += `<option value="${sup}" data-balance="${bal}">${sup} (Sisa: ${formatRp(bal)})</option>`;
+            }
+        }
+        if(options === '<option value="">-- Pilih Hutang yang Mau Dilunasi --</option>') {
+            options = '<option value="">-- Tidak ada hutang aktif --</option>';
+        }
+        
+        dropHutang.innerHTML = options;
+        noteInput.value = 'Pelunasan Hutang';
+        nominalInput.value = '';
+      }
+    }
+
+    function autofillPelunasan() {
+        const drop = document.getElementById('exp-hutang-dropdown');
+        const selected = drop.options[drop.selectedIndex];
+        
+        if(selected && selected.value) {
+            const bal = selected.getAttribute('data-balance');
+            // Isi diam-diam input nama supplier agar bisa disimpan oleh fungsi saveExpense
+            document.getElementById('exp-supplier').value = selected.value; 
+            // Isi otomatis nominal dengan sisa hutang
+            document.getElementById('exp-nominal').value = Number(bal).toLocaleString('id-ID'); 
+        } else {
+            document.getElementById('exp-supplier').value = '';
+            document.getElementById('exp-nominal').value = '';
+        }
     }
 
     async function saveExpense() {
