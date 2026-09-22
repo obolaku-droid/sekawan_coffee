@@ -1038,51 +1038,54 @@
   <script>
     const SEKAWAN_MENU_VERSION = 'v10_cloud';
     const INITIAL_CATEGORIES = [
-      { id: 'basic_espresso', name: 'Espresso' },
+      { id: 'basic_espresso', name: 'Basic Espresso' },
       { id: 'kopi_susu', name: 'Kopi Susu' },
+      { id: 'non_coffee', name: 'Non - Coffee' },
       { id: 'signature', name: 'Signature' },
-      { id: 'non_coffee', name: 'Non Coffee' },
-      { id: 'minuman_segar', name: 'Minuman Segar' },
-      { id: 'makanan_snack', name: 'Makanan & Snack' }
+      { id: 'minuman_segar', name: 'Minuman Segar' }
     ];
 
     const INITIAL_PRODUCTS = [
-      { id: 'be_1', name: 'Espresso', cat: 'basic_espresso', variants: [{ id: 'be_1h', name: 'Hot', price: 10000 }, { id: 'be_1c', name: 'Cold', price: 10000 }] },
-      { id: 'be_2', name: 'Double Espresso', cat: 'basic_espresso', variants: [{ id: 'be_2h', name: 'Hot', price: 13000 }, { id: 'be_2c', name: 'Cold', price: 15000 }] },
-      { id: 'be_3', name: 'Americano', cat: 'basic_espresso', variants: [{ id: 'be_3h', name: 'Hot', price: 12000 }, { id: 'be_3c', name: 'Cold', price: 14000 }] },
-      { id: 'be_4', name: 'Long Black', cat: 'basic_espresso', variants: [{ id: 'be_4h', name: 'Hot', price: 12000 }, { id: 'be_4c', name: 'Cold', price: 14000 }] },
-      { id: 'ks_1', name: 'Sanger Espresso', cat: 'kopi_susu', variants: [{ id: 'ks_1h', name: 'Hot', price: 13000 }, { id: 'ks_1c', name: 'Cold', price: 15000 }] },
-      { id: 'ks_2', name: 'Sanger Arabika', cat: 'kopi_susu', variants: [{ id: 'ks_2h', name: 'Hot', price: 15000 }, { id: 'ks_2c', name: 'Cold', price: 18000 }] },
-      { id: 'ks_3', name: 'Coffee Latte', cat: 'kopi_susu', variants: [{ id: 'ks_3h', name: 'Hot', price: 13000 }, { id: 'ks_3c', name: 'Cold', price: 15000 }] },
-      { id: 'ks_4', name: 'Cappuccino', cat: 'kopi_susu', variants: [{ id: 'ks_4h', name: 'Hot', price: 14000 }, { id: 'ks_4c', name: 'Cold', price: 16000 }] },
-      { id: 'ks_5', name: 'Kopi Susu Gula Aren', cat: 'kopi_susu', variants: [{ id: 'ks_5c', name: 'Cold', price: 15000 }] },
-      { id: 'ks_6', name: 'Mochaccino', cat: 'kopi_susu', variants: [{ id: 'ks_6h', name: 'Hot', price: 15000 }, { id: 'ks_6c', name: 'Cold', price: 17000 }] },
-      { id: 'ks_7', name: 'Vanilla Latte', cat: 'kopi_susu', variants: [{ id: 'ks_7h', name: 'Hot', price: 15000 }, { id: 'ks_7c', name: 'Cold', price: 17000 }] },
-      { id: 'ks_8', name: 'Hazelnut Latte', cat: 'kopi_susu', variants: [{ id: 'ks_8h', name: 'Hot', price: 15000 }, { id: 'ks_8c', name: 'Cold', price: 17000 }] },
-      { id: 'ks_9', name: 'Caramel Macchiato', cat: 'kopi_susu', variants: [{ id: 'ks_9h', name: 'Hot', price: 16000 }, { id: 'ks_9c', name: 'Cold', price: 18000 }] },
-      { id: 'sg_1', name: 'Sekawan Coffee', cat: 'signature', variants: [{ id: 'sg_1c', name: 'Cold', price: 20000 }] },
-      { id: 'sg_2', name: 'Sekawan Sanger Creamy', cat: 'signature', variants: [{ id: 'sg_2c', name: 'Cold', price: 18000 }] },
-      { id: 'sg_3', name: 'Avocado Coffee', cat: 'signature', variants: [{ id: 'sg_3c', name: 'Cold', price: 22000 }] },
-      { id: 'sg_4', name: 'Biscoff Coffee Latte', cat: 'signature', variants: [{ id: 'sg_4c', name: 'Cold', price: 22000 }] },
-      { id: 'nc_1', name: 'Matcha Latte', cat: 'non_coffee', variants: [{ id: 'nc_1h', name: 'Hot', price: 15000 }, { id: 'nc_1c', name: 'Cold', price: 17000 }] },
-      { id: 'nc_2', name: 'Chocolate', cat: 'non_coffee', variants: [{ id: 'nc_2h', name: 'Hot', price: 15000 }, { id: 'nc_2c', name: 'Cold', price: 17000 }] },
-      { id: 'nc_3', name: 'Red Velvet', cat: 'non_coffee', variants: [{ id: 'nc_3h', name: 'Hot', price: 15000 }, { id: 'nc_3c', name: 'Cold', price: 17000 }] },
-      { id: 'nc_4', name: 'Taro Latte', cat: 'non_coffee', variants: [{ id: 'nc_4h', name: 'Hot', price: 15000 }, { id: 'nc_4c', name: 'Cold', price: 17000 }] },
-      { id: 'nc_5', name: 'Banana Chocolate', cat: 'non_coffee', variants: [{ id: 'nc_5c', name: 'Cold', price: 18000 }] },
-      { id: 'ms_1', name: 'Lemon Tea', cat: 'minuman_segar', variants: [{ id: 'ms_1h', name: 'Hot', price: 10000 }, { id: 'ms_1c', name: 'Cold', price: 12000 }] },
-      { id: 'ms_2', name: 'Lychee Tea', cat: 'minuman_segar', variants: [{ id: 'ms_2c', name: 'Cold', price: 15000 }] },
-      { id: 'ms_3', name: 'Peach Tea', cat: 'minuman_segar', variants: [{ id: 'ms_3c', name: 'Cold', price: 15000 }] },
-      { id: 'ms_4', name: 'Green Mojito', cat: 'minuman_segar', variants: [{ id: 'ms_4c', name: 'Cold', price: 16000 }] },
-      { id: 'ms_5', name: 'Lychee Yakult', cat: 'minuman_segar', variants: [{ id: 'ms_5c', name: 'Cold', price: 16000 }] },
-      { id: 'ms_6', name: 'Mango Yakult', cat: 'minuman_segar', variants: [{ id: 'ms_6c', name: 'Cold', price: 16000 }] },
-      { id: 'ms_7', name: 'Air Mineral', cat: 'minuman_segar', variants: [{ id: 'ms_7c', name: 'Dingin', price: 5000 }] },
-      { id: 'sn_1', name: 'Kentang Goreng Crispy', cat: 'makanan_snack', variants: [{ id: 'sn_1r', name: 'Porsi', price: 15000 }] },
-      { id: 'sn_2', name: 'Roti Bakar Coklat Keju', cat: 'makanan_snack', variants: [{ id: 'sn_2r', name: 'Porsi', price: 16000 }] },
-      { id: 'sn_3', name: 'Pisang Goreng Crispy', cat: 'makanan_snack', variants: [{ id: 'sn_3r', name: 'Porsi', price: 14000 }] },
-      { id: 'sn_4', name: 'Dimsum Ayam Kukus', cat: 'makanan_snack', variants: [{ id: 'sn_4r', name: 'Porsi (4 pcs)', price: 18000 }] },
-      { id: 'sn_5', name: 'Cireng Bumbu Rujak', cat: 'makanan_snack', variants: [{ id: 'sn_5r', name: 'Porsi', price: 14000 }] },
-      { id: 'sn_6', name: 'Nasi Goreng Spesial', cat: 'makanan_snack', variants: [{ id: 'sn_6r', name: 'Porsi', price: 22000 }] },
-      { id: 'sn_7', name: 'Mie Goreng Telur', cat: 'makanan_snack', variants: [{ id: 'sn_7r', name: 'Porsi', price: 18000 }] }
+      // BASIC ESPRESSO
+      { id: 'be_1', name: 'Espresso', cat: 'basic_espresso', variants: [{ id: 'be_1h', name: 'Hot', price: 10000 }, { id: 'be_1c', name: 'Ice', price: 10000 }] },
+      { id: 'be_2', name: 'Double Espresso', cat: 'basic_espresso', variants: [{ id: 'be_2h', name: 'Hot', price: 13000 }, { id: 'be_2c', name: 'Ice', price: 15000 }] },
+      { id: 'be_3', name: 'Americano', cat: 'basic_espresso', variants: [{ id: 'be_3h', name: 'Hot', price: 13000 }, { id: 'be_3c', name: 'Ice', price: 15000 }] },
+      { id: 'be_4', name: 'Longo', cat: 'basic_espresso', variants: [{ id: 'be_4h', name: 'Hot', price: 13000 }, { id: 'be_4c', name: 'Ice', price: 15000 }] },
+      { id: 'be_5', name: 'Long Black', cat: 'basic_espresso', variants: [{ id: 'be_5h', name: 'Hot', price: 13000 }, { id: 'be_5c', name: 'Ice', price: 15000 }] },
+
+      // KOPI SUSU
+      { id: 'ks_1', name: 'Sanger Espresso', cat: 'kopi_susu', variants: [{ id: 'ks_1h', name: 'Hot', price: 13000 }, { id: 'ks_1c', name: 'Ice', price: 15000 }] },
+      { id: 'ks_2', name: 'Coffee Latte', cat: 'kopi_susu', variants: [{ id: 'ks_2h', name: 'Hot', price: 13000 }, { id: 'ks_2c', name: 'Ice', price: 15000 }] },
+      { id: 'ks_3', name: 'Cappucino', cat: 'kopi_susu', variants: [{ id: 'ks_3h', name: 'Hot', price: 13000 }, { id: 'ks_3c', name: 'Ice', price: 15000 }] },
+      { id: 'ks_4', name: 'Coffee Pandan', cat: 'kopi_susu', variants: [{ id: 'ks_4h', name: 'Hot', price: 15000 }, { id: 'ks_4c', name: 'Ice', price: 18000 }] },
+      { id: 'ks_5', name: 'Coffee Vanilla', cat: 'kopi_susu', variants: [{ id: 'ks_5h', name: 'Hot', price: 15000 }, { id: 'ks_5c', name: 'Ice', price: 18000 }] },
+      { id: 'ks_6', name: 'Coffee Caramel', cat: 'kopi_susu', variants: [{ id: 'ks_6h', name: 'Hot', price: 15000 }, { id: 'ks_6c', name: 'Ice', price: 18000 }] },
+      { id: 'ks_7', name: 'Coffee Tiramisu', cat: 'kopi_susu', variants: [{ id: 'ks_7h', name: 'Hot', price: 15000 }, { id: 'ks_7c', name: 'Ice', price: 18000 }] },
+      { id: 'ks_8', name: 'Coffee Susu Gula Aren', cat: 'kopi_susu', variants: [{ id: 'ks_8h', name: 'Hot', price: 15000 }, { id: 'ks_8c', name: 'Ice', price: 18000 }] },
+      { id: 'ks_9', name: 'Butterscotch', cat: 'kopi_susu', variants: [{ id: 'ks_9h', name: 'Hot', price: 15000 }, { id: 'ks_9c', name: 'Ice', price: 18000 }] },
+
+      // NON - COFFEE
+      { id: 'nc_1', name: 'Red Velvet', cat: 'non_coffee', variants: [{ id: 'nc_1c', name: 'Ice', price: 15000 }] },
+      { id: 'nc_2', name: 'Chocolate', cat: 'non_coffee', variants: [{ id: 'nc_2c', name: 'Ice', price: 15000 }] },
+      { id: 'nc_3', name: 'Matcha Latte', cat: 'non_coffee', variants: [{ id: 'nc_3c', name: 'Ice', price: 18000 }] },
+      { id: 'nc_4', name: 'Taro', cat: 'non_coffee', variants: [{ id: 'nc_4c', name: 'Ice', price: 15000 }] },
+      { id: 'nc_5', name: 'Pandan Milky', cat: 'non_coffee', variants: [{ id: 'nc_5c', name: 'Ice', price: 15000 }] },
+      { id: 'nc_6', name: 'Strawberry Milky', cat: 'non_coffee', variants: [{ id: 'nc_6c', name: 'Ice', price: 15000 }] },
+
+      // SIGNATURE
+      { id: 'sg_1', name: 'Sekawan Coffee', cat: 'signature', variants: [{ id: 'sg_1c', name: 'Ice', price: 20000 }] },
+      { id: 'sg_2', name: 'Thepink Venom', cat: 'signature', variants: [{ id: 'sg_2c', name: 'Ice', price: 15000 }] },
+      { id: 'sg_3', name: 'Blue Lagon', cat: 'signature', variants: [{ id: 'sg_3c', name: 'Ice', price: 18000 }] },
+      { id: 'sg_4', name: 'Manis Lembut', cat: 'signature', variants: [{ id: 'sg_4c', name: 'Ice', price: 18000 }] },
+      { id: 'sg_5', name: 'Spanis Latte', cat: 'signature', variants: [{ id: 'sg_5c', name: 'Ice', price: 18000 }] },
+
+      // MINUMAN SEGAR
+      { id: 'ms_1', name: 'Anggur', cat: 'minuman_segar', variants: [{ id: 'ms_1c', name: 'Ice', price: 15000 }] },
+      { id: 'ms_2', name: 'Blueberry', cat: 'minuman_segar', variants: [{ id: 'ms_2c', name: 'Ice', price: 13000 }] },
+      { id: 'ms_3', name: 'Strawberry', cat: 'minuman_segar', variants: [{ id: 'ms_3c', name: 'Ice', price: 13000 }] },
+      { id: 'ms_4', name: 'Leci Tea', cat: 'minuman_segar', variants: [{ id: 'ms_4c', name: 'Ice', price: 13000 }] },
+      { id: 'ms_5', name: 'Lemon Tea', cat: 'minuman_segar', variants: [{ id: 'ms_5c', name: 'Ice', price: 10000 }] },
+      { id: 'ms_6', name: 'Green Tea', cat: 'minuman_segar', variants: [{ id: 'ms_6c', name: 'Ice', price: 10000 }] }
     ];
 
     let categories = JSON.parse(localStorage.getItem('moka_categories')) || INITIAL_CATEGORIES;
