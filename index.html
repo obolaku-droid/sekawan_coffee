@@ -57,7 +57,7 @@
       color: var(--text);
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start; /* Berubah dari center ke flex-start agar tidak terpotong */
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -66,8 +66,11 @@
     .app-frame {
       width: 100vw;
       max-width: 420px;
-      height: 100vh;
+      height: 100%; 
+      height: 100dvh; /* Menggunakan tinggi layar dinamis HP */
       max-height: 850px;
+      padding-top: env(safe-area-inset-top); /* Mengamankan area status bar / poni iPhone */
+      padding-bottom: env(safe-area-inset-bottom);
       background-color: var(--surface);
       display: flex;
       flex-direction: column;
@@ -81,6 +84,7 @@
       .app-frame {
         border-radius: 28px;
         height: 90vh;
+        margin-top: 5vh; /* Menjaga aplikasi tetap di tengah saat dibuka di PC/Laptop */
       }
     }
 
