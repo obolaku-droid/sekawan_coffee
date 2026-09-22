@@ -2163,10 +2163,6 @@
       });
       const topItems = Object.entries(itemStats).sort((a,b) => b[1].omzet - a[1].omzet);
 
-      // Kalkulasi Bagi Hasil (Simulasi 10% Dana Pengembangan)
-      const danaPengembangan = labaBersih * 0.10;
-      const sisaBagiHasil = labaBersih - danaPengembangan;
-
       // Daftar Hutang Tersisa
       let supplierBalances = {};
       mExp.forEach(e => {
@@ -2178,6 +2174,24 @@
           if(bal > 0) activeHutangHTML += '<tr><td>' + sup + '</td><td>Bahan Baku</td><td>-</td><td>' + formatRp(bal) + '</td></tr>';
       }
       if(activeHutangHTML === '') activeHutangHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada hutang aktif</td></tr>';
+
+      // Analisa Keseluruhan Dinamis
+      let analisaText = '';
+      if (omzet > 0) {
+        analisaText += 'Kinerja keuangan bulan ini mencatatkan omzet sebesar <b>' + formatRp(omzet) + '</b> dengan laba bersih <b>' + formatRp(labaBersih) + '</b> (Margin: ' + marginLaba + '%). ';
+        if (rasioBiaya > 40) {
+          analisaText += 'Rasio biaya operasional mencapai ' + rasioBiaya + '%, disarankan untuk mengevaluasi pengeluaran agar lebih efisien. ';
+        } else {
+          analisaText += 'Rasio biaya operasional terjaga di angka ' + rasioBiaya + '%, menunjukkan efisiensi yang baik. ';
+        }
+        if (sisaHutang > 0) {
+          analisaText += 'Terdapat sisa hutang supplier sebesar <b>' + formatRp(sisaHutang) + '</b> yang perlu diprioritaskan pelunasannya bulan depan.';
+        } else {
+          analisaText += 'Tidak ada tunggakan hutang supplier (lunas), kondisi arus kas sangat sehat.';
+        }
+      } else {
+        analisaText = 'Belum ada data transaksi yang memadai untuk dianalisa pada bulan ini.';
+      }
 
       // Template HTML
       printWindow.document.write(`
@@ -2209,7 +2223,10 @@
             .bar-fill.dark { background: #3e2723; }
             
             .signature-area { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
-            .sign-box { width: 18%; border-top: 1px solid #333; padding-top: 5px; font-size: 11px; }
+            .sign-box { width: 22%; border-top: 1px solid #333; padding-top: 5px; font-size: 11px; }
+            
+            .analisa-box { background: white; border: 1px solid #d7ccc8; padding: 15px; border-radius: 8px; font-size: 11px; line-height: 1.5; margin-bottom: 20px; }
+            .catatan-box { border: 1px dashed #d7ccc8; height: 100px; border-radius: 8px; margin-bottom: 20px; background: #fafafa; }
           </style>
         </head>
         <body>
@@ -2281,35 +2298,40 @@
             <p style="font-size:10px; color:#5d4037;">*Catatan: Hutang ini adalah kewajiban yang harus dibayarkan bulan depan. Pastikan kas fisik mencukupi untuk pelunasan.</p>
           </div>
 
-          <!-- HALAMAN 3: Bagi Hasil -->
+          <!-- HALAMAN 3: Analisa, Bagi Hasil, Catatan & Tanda Tangan -->
           <div class="page">
-            <h2>4. Simulasi Pembagian Hasil & Dana Pengembangan</h2>
-            <p style="font-size:11px;">Dihitung berdasarkan Laba Bersih: <b>${formatRp(labaBersih)}</b></p>
+            <h2>4. Analisa Keseluruhan</h2>
+            <div class="analisa-box">
+              ${analisaText}
+            </div>
+
+            <h2>5. Pembagian Hasil (Laba Bersih)</h2>
+            <p style="font-size:11px;">Dihitung penuh dari Laba Bersih: <b>${formatRp(labaBersih)}</b></p>
             <table>
-              <tr><th>Pihak / Pos Keuangan</th><th>Porsi</th><th>Diterima (Rp)</th></tr>
-              <tr style="background:#fff3e0;">
-                <td><b>Dana Pengembangan / Cadangan Kas</b></td>
-                <td><b>10%</b> (Dari Laba)</td>
-                <td><b>${formatRp(danaPengembangan)}</b></td>
-              </tr>
-              <tr><td>Hamzah</td><td>40% (Dari Sisa Laba)</td><td>${formatRp(sisaBagiHasil * 0.40)}</td></tr>
-              <tr><td>Ridha Fadli</td><td>15% (Dari Sisa Laba)</td><td>${formatRp(sisaBagiHasil * 0.15)}</td></tr>
-              <tr><td>Velayani</td><td>15% (Dari Sisa Laba)</td><td>${formatRp(sisaBagiHasil * 0.15)}</td></tr>
-              <tr><td>Maulana</td><td>15% (Dari Sisa Laba)</td><td>${formatRp(sisaBagiHasil * 0.15)}</td></tr>
-              <tr><td>Ikram</td><td>15% (Dari Sisa Laba)</td><td>${formatRp(sisaBagiHasil * 0.15)}</td></tr>
+              <tr><th>Pihak</th><th>Porsi</th><th>Diterima (Rp)</th></tr>
+              <tr><td>Hamzah</td><td>40%</td><td>${formatRp(labaBersih * 0.40)}</td></tr>
+              <tr><td>Ridha Fadli</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
+              <tr><td>Velayani</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
+              <tr><td>Maulana</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
+              <tr><td>Ikram</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
               <tr style="background:#efebe9; font-weight:bold;">
-                <td colspan="2">Total Laba Dibagikan (Termasuk Cadangan)</td>
+                <td colspan="2">Total Laba Dibagikan</td>
                 <td>${formatRp(labaBersih)}</td>
               </tr>
             </table>
 
+            <h2>6. Catatan & Keputusan Bersama</h2>
+            <div class="catatan-box"></div>
+
+            <p style="font-size:11px; font-weight:bold; margin-top:30px; margin-bottom: 20px;">Disetujui oleh:</p>
             <div class="signature-area">
-              <div class="sign-box">Hamzah</div>
               <div class="sign-box">Ridha Fadli</div>
-              <div class="sign-box">Velayani</div>
               <div class="sign-box">Maulana</div>
-              <div class="sign-box">Ikram</div>
+              <div class="sign-box">Velayani</div>
+              <div class="sign-box">Muhammad Ikram</div>
             </div>
+            
+            <p style="text-align:center; font-size:10px; color:#999; margin-top:40px;">Dokumen ini dicetak otomatis dari Sistem Cloud POS Sekawan Coffee.</p>
           </div>
 
           <script>
