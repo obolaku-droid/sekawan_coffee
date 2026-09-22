@@ -1155,14 +1155,39 @@
       if (!db || !appId) return;
       const fm = window.firebaseModules;
 
-      // 1. Sinkronisasi PIN Owner secara Realtime dari Cloud
-      const pinDocRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
-      fm.onSnapshot(pinDocRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().ownerPin) {
-          ownerPin = docSnap.data().ownerPin;
-          localStorage.setItem('moka_owner_pin', ownerPin);
+      // 1. Sinkronisasi Pengaturan GLOBAL (PIN, Menu, Meja, Profil) secara Realtime
+      const configDocRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+      fm.onSnapshot(configDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          
+          if (data.ownerPin) { 
+            ownerPin = data.ownerPin; 
+            localStorage.setItem('moka_owner_pin', ownerPin); 
+          }
+          if (data.name) storeConfig.name = data.name;
+          if (data.logo) storeConfig.logo = data.logo;
+          if (data.name || data.logo) {
+            localStorage.setItem('moka_store_config', JSON.stringify(storeConfig));
+            applyStoreConfig();
+          }
+          if (data.maxTableNumber) {
+            maxTableNumber = data.maxTableNumber;
+            localStorage.setItem('moka_max_table', maxTableNumber);
+            if (document.getElementById('tab-meja').classList.contains('active')) renderMeja();
+          }
+          if (data.categories) {
+            categories = data.categories;
+            localStorage.setItem('moka_categories', JSON.stringify(categories));
+            renderCategoriesBar();
+          }
+          if (data.products) {
+            products = data.products;
+            localStorage.setItem('moka_p', JSON.stringify(products));
+            renderProducts();
+          }
         }
-      }, (err) => console.debug('Pin sync err:', err));
+      }, (err) => console.debug('Config sync err:', err));
 
       // 2. Sinkronisasi Transaksi secara Realtime
       const txQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'transactions');
@@ -1456,14 +1481,22 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    function restoreFullCatalog() {
+    async function restoreFullCatalog() {
       localStorage.setItem('moka_p', JSON.stringify(INITIAL_PRODUCTS));
       localStorage.setItem('moka_categories', JSON.stringify(INITIAL_CATEGORIES));
       categories = [...INITIAL_CATEGORIES];
       products = [...INITIAL_PRODUCTS];
+      
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { categories, products }, { merge: true }); } 
+        catch (err) { console.error('Sync restore err:', err); }
+      }
+      
       renderCategoriesBar();
       renderProducts();
-      notify('Katalog menu dipulihkan!');
+      notify('Katalog menu dipulihkan & disinkronkan ke Cloud!');
+    }
     }
     function confirmCloseShift() {
       currentShift = null;
@@ -1525,19 +1558,25 @@
       }
     }
 
-    function saveStoreSettings() {
+    async function saveStoreSettings() {
       const name = document.getElementById('setting-store-name').value.trim();
       if (!name) return;
       storeConfig.name = name;
       localStorage.setItem('moka_store_config', JSON.stringify(storeConfig));
       applyStoreConfig();
-      notify('Profil & Logo disimpan');
+      
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { name: storeConfig.name, logo: storeConfig.logo }, { merge: true });
+        } catch (err) { console.error('Sync profile err:', err); }
+      }
+      notify('Profil & Logo disinkronkan ke Cloud');
     }
 
     async function saveNewPin() {
       const newPin = document.getElementById('setting-new-pin').value.trim();
       if (newPin.length < 4) { notify('PIN min 4 digit'); return; }
-      
       ownerPin = newPin;
       localStorage.setItem('moka_owner_pin', ownerPin);
 
@@ -1545,11 +1584,8 @@
         const fm = window.firebaseModules;
         try {
           await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { ownerPin }, { merge: true });
-        } catch (err) {
-          console.error('Gagal sync PIN ke cloud:', err);
-        }
+        } catch (err) { console.error('Sync PIN err:', err); }
       }
-
       document.getElementById('setting-new-pin').value = '';
       notify('PIN Owner berhasil diubah & disinkronkan!');
     }
@@ -1563,18 +1599,26 @@
       document.getElementById('new-prod-cat').innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     }
     function openModalAddCategory() { document.getElementById('modal-add-category').classList.add('show'); }
-    function saveNewCategory() {
+    
+    async function saveNewCategory() {
       const name = document.getElementById('new-cat-name').value.trim();
       if (!name) return;
       const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
       categories.push({ id, name });
       localStorage.setItem('moka_categories', JSON.stringify(categories));
+      
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { categories }, { merge: true }); } 
+        catch (err) { console.error('Sync cat err:', err); }
+      }
+      
       document.getElementById('modal-add-category').classList.remove('show');
       renderCategoryDropdown(); renderCategoriesBar();
-      notify('Kategori ditambahkan');
+      notify('Kategori ditambahkan & disinkronkan');
     }
 
-    function saveNewProduct() {
+    async function saveNewProduct() {
       const name = document.getElementById('new-prod-name').value.trim();
       const cat = document.getElementById('new-prod-cat').value;
       const pSingle = parseNumeric(document.getElementById('new-prod-price-single').value);
@@ -1593,7 +1637,14 @@
 
       products.push({ id: baseId, name, cat, variants });
       localStorage.setItem('moka_p', JSON.stringify(products));
-      closeModalAddProduct(); renderProducts(); notify('Menu ditambahkan');
+      
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { products }, { merge: true }); } 
+        catch (err) { console.error('Sync prod err:', err); }
+      }
+      
+      closeModalAddProduct(); renderProducts(); notify('Menu ditambahkan & disinkronkan');
     }
 
     function openModalAddTable() {
@@ -1601,6 +1652,22 @@
       document.getElementById('modal-add-table').classList.add('show');
     }
     function closeModalAddTable() { document.getElementById('modal-add-table').classList.remove('show'); }
+    
+    async function saveNewTable() {
+      const num = Number(document.getElementById('new-table-num').value);
+      if (num > 0) {
+        maxTableNumber = num;
+        localStorage.setItem('moka_max_table', maxTableNumber);
+        
+        if (db && appId) {
+          const fm = window.firebaseModules;
+          try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { maxTableNumber }, { merge: true }); } 
+          catch (err) { console.error('Sync table err:', err); }
+        }
+        
+        closeModalAddTable(); renderMeja(); notify('Meja disinkronkan ke Cloud');
+      }
+    }
     function saveNewTable() {
       const num = Number(document.getElementById('new-table-num').value);
       if (num > 0) {
