@@ -1672,15 +1672,7 @@
         closeModalAddTable(); renderMeja(); notify('Meja disinkronkan ke Cloud');
       }
     }
-    function saveNewTable() {
-      const num = Number(document.getElementById('new-table-num').value);
-      if (num > 0) {
-        maxTableNumber = num;
-        localStorage.setItem('moka_max_table', maxTableNumber);
-        closeModalAddTable(); renderMeja(); notify('Meja ditambahkan');
-      }
-    }
-
+    
     function renderCategoriesBar() {
       let html = `<button class="cat-pill ${activeCategory === 'semua' ? 'active' : ''}" onclick="setCategory('semua', this)">Semua</button>`;
       categories.forEach(c => html += `<button class="cat-pill ${activeCategory === c.id ? 'active' : ''}" onclick="setCategory('${c.id}', this)">${c.name}</button>`);
