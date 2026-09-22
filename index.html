@@ -2145,7 +2145,7 @@
       const hutangBulanIni = mExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0);
       const pelunasanBulanIni = mExp.filter(e => e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
       
-      const totalBiaya = biayaOperasional; // Asumsi biaya langsung memotong omzet
+      const totalBiaya = biayaOperasional;
       const labaBersih = omzet - totalBiaya;
       const sisaHutang = hutangBulanIni - pelunasanBulanIni;
       
@@ -2175,7 +2175,7 @@
       });
       let activeHutangHTML = '';
       for(const [sup, bal] of Object.entries(supplierBalances)) {
-          if(bal > 0) activeHutangHTML += `<tr><td>${sup}</td><td>Bahan Baku</td><td>-</td><td>${formatRp(bal)}</td></tr>`;
+          if(bal > 0) activeHutangHTML += '<tr><td>' + sup + '</td><td>Bahan Baku</td><td>-</td><td>' + formatRp(bal) + '</td></tr>';
       }
       if(activeHutangHTML === '') activeHutangHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada hutang aktif</td></tr>';
 
@@ -2250,13 +2250,14 @@
               ${topItems.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Belum ada data penjualan</td></tr>' : 
                 topItems.map((item, idx) => {
                   const pct = omzet > 0 ? ((item[1].omzet / omzet) * 100).toFixed(1) : 0;
-                  return \`<tr>
-                    <td>\${item[0]}</td>
-                    <td>\${formatRp(item[1].price)}</td>
-                    <td>\${item[1].qty}</td>
-                    <td>\${formatRp(item[1].omzet)}</td>
-                    <td>\${pct}% <div class="bar-container"><div class="bar-fill \${idx===0?'dark':''}" style="width:\${pct}%"></div></div></td>
-                  </tr>\`;
+                  const darkClass = idx === 0 ? 'dark' : '';
+                  return '<tr>' +
+                    '<td>' + item[0] + '</td>' +
+                    '<td>' + formatRp(item[1].price) + '</td>' +
+                    '<td>' + item[1].qty + '</td>' +
+                    '<td>' + formatRp(item[1].omzet) + '</td>' +
+                    '<td>' + pct + '% <div class="bar-container"><div class="bar-fill ' + darkClass + '" style="width:' + pct + '%"></div></div></td>' +
+                  '</tr>';
                 }).join('')}
             </table>
           </div>
@@ -2309,16 +2310,14 @@
               <div class="sign-box">Maulana</div>
               <div class="sign-box">Ikram</div>
             </div>
-            
-            <p style="text-align:center; font-size:10px; color:#999; margin-top:40px;">Dokumen ini dicetak otomatis dari Sistem Cloud POS Sekawan Coffee.</p>
           </div>
 
           <script>
             window.onload = function() { window.print(); };
-          </script>
+          <\\/script>
         </body>
         </html>
-      \`);
+      `);
       printWindow.document.close();
     }
     
