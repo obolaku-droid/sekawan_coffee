@@ -1985,19 +1985,39 @@
 
     function renderExpenses() {
       let kas = 0; let hutang = 0;
-      expenses.forEach(e => { 
-        if (e.type === 'kas') kas += e.amount; 
-        if (e.type === 'hutang') hutang += e.amount;
-        if (e.type === 'bayar_hutang') { 
-            kas += e.amount;     // Kas fisik laci keluar/berkurang
-            hutang -= e.amount;  // Sisa hutang ke supplier lunas/berkurang
+      let supplierBalances = {};
+
+      // 1. Hitung total kas, hutang, dan sisa saldo per supplier
+      expenses.forEach(e => {
+        if (e.type === 'kas') kas += e.amount;
+        if (e.type === 'hutang') {
+            hutang += e.amount;
+            supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
+        }
+        if (e.type === 'bayar_hutang') {
+            kas += e.amount;
+            hutang -= e.amount;
+            supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount;
         }
       });
+
+      // Update angka di kotak merah (Kas Keluar) dan kuning (Hutang Supplier)
       document.getElementById('total-kas-display').textContent = formatRp(kas);
       document.getElementById('total-hutang-display').textContent = formatRp(hutang);
-      
-      document.getElementById('expense-container').innerHTML = expenses.map(e => {
-        // Tentukan warna: Hutang (kuning), Pelunasan (hijau), Kas Keluar (merah)
+
+      // 2. Filter Tampilan Daftar: Sembunyikan Hutang yang sudah lunas (saldo <= 0)
+      const visibleExpenses = expenses.filter(e => {
+        // Riwayat Kas Operasional dan Pelunasan selalu ditampilkan agar arus uang laci jelas
+        if (e.type === 'kas' || e.type === 'bayar_hutang') return true;
+        
+        // Untuk riwayat Hutang lama, HANYA tampilkan jika supplier tersebut masih menunggak
+        if (e.type === 'hutang') return supplierBalances[e.supplier] > 0;
+        
+        return true;
+      });
+
+      // 3. Render ke layar
+      document.getElementById('expense-container').innerHTML = visibleExpenses.map(e => {
         let color = e.type === 'hutang' ? 'var(--warning)' : (e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)');
         let label = e.type === 'kas' ? e.note : (e.type === 'bayar_hutang' ? `Pelunasan: ${e.supplier}` : `Hutang: ${e.supplier}`);
         return `
