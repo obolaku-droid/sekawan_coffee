@@ -1341,20 +1341,72 @@
 
     function shareShiftRecapWA() {
       if (!currentShift) return;
-      const shiftTx = transactions.filter(t => new Date(t.date) >= new Date(currentShift.startTime));
-      const shiftExp = expenses.filter(e => e.type === 'kas' && new Date(e.date) >= new Date(currentShift.startTime));
-      const totalOmzet = shiftTx.reduce((acc, t) => acc + t.total, 0);
-      const totalKasKeluar = shiftExp.reduce((acc, e) => acc + e.amount, 0);
-      const netProfit = totalOmzet - totalKasKeluar;
+      const endTime = new Date();
+      const startTime = new Date(currentShift.startTime);
 
-      let msg = `📋 *REKAP TUTUP SHIFT*\n` +
-                `Toko: ${storeConfig.name}\n` +
-                `Kasir: ${currentShift.cashier}\n` +
-                `----------------------------\n` +
-                `• Total Omset: ${formatRp(totalOmzet)}\n` +
-                `• Kas Keluar: ${formatRp(totalKasKeluar)}\n` +
-                `• *Laba Bersih: ${formatRp(netProfit)}*`;
+      // Fungsi format jam jadi HH:MM
+      const formatTime = (d) => d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
+      // Filter data sesuai waktu shift berjalan
+      const shiftTx = transactions.filter(t => new Date(t.date) >= startTime);
+      const shiftExp = expenses.filter(e => e.type === 'kas' && new Date(e.date) >= startTime);
+
+      // Kalkulasi Uang & Transaksi
+      const modalAwal = currentShift.initialCash || 0;
+      
+      const txTunai = shiftTx.filter(t => t.paymentMethod === 'tunai');
+      const sumTunai = txTunai.reduce((acc, t) => acc + t.total, 0);
+
+      const txQris = shiftTx.filter(t => t.paymentMethod === 'nontunai');
+      const sumQris = txQris.reduce((acc, t) => acc + t.total, 0);
+
+      const sumKasKeluar = shiftExp.reduce((acc, e) => acc + e.amount, 0);
+      const totalOmzet = sumTunai + sumQris;
+      const totalTx = shiftTx.length;
+
+      // Rumus Kas di Laci: Modal Awal + Penjualan Tunai - Kas Keluar
+      const fisikLaci = modalAwal + sumTunai - sumKasKeluar;
+
+      // Buat list rincian Kas Keluar
+      let rincianKasKeluar = shiftExp.map(e => {
+        return `• ${formatTime(new Date(e.date))}: ${e.note} (-${formatRp(e.amount)})`;
+      }).join('\n');
+      if (!rincianKasKeluar) rincianKasKeluar = '• Tidak ada pengeluaran';
+
+      // Buat list rincian Menu Terjual
+      const itemCounts = {};
+      shiftTx.forEach(t => {
+        t.items.forEach(i => {
+          itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty;
+        });
+      });
+      let rincianMenu = Object.entries(itemCounts)
+        .sort((a, b) => b[1] - a[1]) // Urutkan dari yang paling banyak terjual
+        .map(([name, qty]) => `• ${name}: ${qty} porsi`)
+        .join('\n');
+      if (!rincianMenu) rincianMenu = '• Belum ada menu terjual';
+
+      // Susun Template Pesan WhatsApp
+      let msg = `📊 *REKAP PENUTUPAN SHIFT (Z-REPORT)*\n` +
+                `☕️ *${storeConfig.name.toUpperCase()}*\n` +
+                `👤 Kasir: ${currentShift.cashier}\n` +
+                `⏰ Jam Shift: ${formatTime(startTime)} - ${formatTime(endTime)} WIB\n` +
+                `========================\n` +
+                `💵 Modal Awal Laci: ${formatRp(modalAwal)}\n` +
+                `➕ Penjualan Tunai: ${formatRp(sumTunai)} (${txTunai.length} transaksi)\n` +
+                `➖ Kas Keluar: ${formatRp(sumKasKeluar)}\n` +
+                `------------------------\n` +
+                `💰 *FISIK KAS LACI WAJIB SETOR:*\n` +
+                `👉 *${formatRp(fisikLaci)}*\n` +
+                `------------------------\n` +
+                `💳 Pembayaran Transfer: ${formatRp(sumQris)} (${txQris.length} transaksi)\n` +
+                `📈 Total Omzet: ${formatRp(totalOmzet)} (${totalTx} transaksi)\n` +
+                `========================\n` +
+                `📝 *Rincian Kas Keluar:*\n${rincianKasKeluar}\n\n` +
+                `📦 *Rincian Menu Terjual:*\n${rincianMenu}\n` +
+                `========================`;
+
+      // Buka link WhatsApp
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
