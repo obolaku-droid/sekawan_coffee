@@ -502,22 +502,6 @@
       cursor: pointer;
     }
     .lap-pill.active { background: #ffffff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-
-    /* Efek Grafik Gelombang Halus Bergerak */
-    @keyframes smoothGraphFlow {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
-    .animated-graph-bg {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 200%;
-      height: 70px;
-      z-index: 0;
-      pointer-events: none;
-      animation: smoothGraphFlow 5s linear infinite;
-    }
   </style>
 </head>
 <body>
@@ -721,7 +705,7 @@
           </div>
         </div>
 
-        <div id="expense-container" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto;"></div>
+        <div id="expense-container" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto; padding-bottom:40px;"></div>
       </div>
 
       <!-- Tab Area Owner (Privasi) -->
@@ -752,7 +736,6 @@
               <button class="lap-pill" onclick="setLapPeriod('custom')">Custom 📅</button>
             </div>
             
-            <!-- Filter Tanggal Custom (Awalnya Sembunyi) -->
             <div id="custom-date-filter" style="display:none; gap:6px; margin-bottom:10px;">
               <input type="date" id="date-start" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
               <span style="font-size:10px; padding-top:8px;">s/d</span>
@@ -762,17 +745,9 @@
 
             <!-- Omzet Utama & Trend Growth -->
             <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-              
-              <!-- Grafik Gelombang (Animasi Smooth & Aktif) -->
-              <div class="animated-graph-bg">
-                <svg viewBox="0 0 2400 120" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
-                  <path fill="rgba(255,255,255,0.15)" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60 L 2400 120 L 0 120 Z"></path>
-                  <path fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="4" stroke-linecap="round" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60"></path>
-                </svg>
-              </div>
+              <div id="dynamic-sparkline" style="position:absolute; bottom:0; left:0; width:100%; height:60%; z-index:0; pointer-events:none; opacity:0.8;"></div>
 
-              <!-- Konten Teks Card (z-index 2 agar tampil di atas grafik) -->
-              <div style="position:relative; z-index:2;">
+              <div style="position:relative; z-index:10;">
                 <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
                 <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
                   <div id="lap-omzet" style="font-size:24px; font-weight:800;">Rp 0</div>
@@ -787,25 +762,21 @@
 
             <!-- ERP Analitik Grid -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
-              <!-- Detail Pembayaran -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">METODE BAYAR</div>
                 <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>💵 Tunai:</span> <strong id="lap-tunai">Rp 0</strong></div>
                 <div style="font-size:11px; display:flex; justify-content:space-between;"><span>📱 QRIS:</span> <strong id="lap-qris">Rp 0</strong></div>
               </div>
-              <!-- Detail Pengeluaran -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">PENGELUARAN</div>
                 <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>Keluar:</span> <strong id="lap-kas" style="color:var(--danger)">Rp 0</strong></div>
                 <div style="font-size:11px; display:flex; justify-content:space-between;"><span>Hutang:</span> <strong id="lap-hutang" style="color:var(--warning)">Rp 0</strong></div>
               </div>
-              <!-- Analisa Basket Size -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">ANALISA PESANAN</div>
                 <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>Rata2 / Trx:</span> <strong id="lap-aov" style="color:#0ea5e9">Rp 0</strong></div>
                 <div style="font-size:11px; display:flex; justify-content:space-between;"><span>Takeaway:</span> <strong id="lap-takeaway">0%</strong></div>
               </div>
-              <!-- Top Menu -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">TOP 3 MENU</div>
                 <div id="lap-top-menu" style="font-size:10px; display:flex; flex-direction:column; gap:3px;">
@@ -973,13 +944,8 @@
       </div>
       <div id="supplier-input-group" style="margin-bottom:8px; display:none;">
         <label style="font-size:10px; font-weight:600;">Nama Supplier / Pilih Hutang</label>
-        
-        <!-- Input untuk nambah hutang baru -->
         <input type="text" id="exp-supplier" placeholder="Nama Supplier..." style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
-        
-        <!-- Dropdown khusus untuk melunasi hutang -->
         <select id="exp-hutang-dropdown" onchange="autofillPelunasan()" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; display:none;"></select>
-        <input type="hidden" id="exp-debt-id" value="">
       </div>
       
       <div style="margin-bottom:8px;">
@@ -1088,14 +1054,11 @@
     ];
 
     const INITIAL_PRODUCTS = [
-      // BASIC ESPRESSO
       { id: 'be_1', name: 'Espresso', cat: 'basic_espresso', variants: [{ id: 'be_1h', name: 'Hot', price: 10000 }, { id: 'be_1c', name: 'Ice', price: 10000 }] },
       { id: 'be_2', name: 'Double Espresso', cat: 'basic_espresso', variants: [{ id: 'be_2h', name: 'Hot', price: 13000 }, { id: 'be_2c', name: 'Ice', price: 15000 }] },
       { id: 'be_3', name: 'Americano', cat: 'basic_espresso', variants: [{ id: 'be_3h', name: 'Hot', price: 13000 }, { id: 'be_3c', name: 'Ice', price: 15000 }] },
       { id: 'be_4', name: 'Longo', cat: 'basic_espresso', variants: [{ id: 'be_4h', name: 'Hot', price: 13000 }, { id: 'be_4c', name: 'Ice', price: 15000 }] },
       { id: 'be_5', name: 'Long Black', cat: 'basic_espresso', variants: [{ id: 'be_5h', name: 'Hot', price: 13000 }, { id: 'be_5c', name: 'Ice', price: 15000 }] },
-
-      // KOPI SUSU
       { id: 'ks_1', name: 'Sanger Espresso', cat: 'kopi_susu', variants: [{ id: 'ks_1h', name: 'Hot', price: 13000 }, { id: 'ks_1c', name: 'Ice', price: 15000 }] },
       { id: 'ks_2', name: 'Coffee Latte', cat: 'kopi_susu', variants: [{ id: 'ks_2h', name: 'Hot', price: 13000 }, { id: 'ks_2c', name: 'Ice', price: 15000 }] },
       { id: 'ks_3', name: 'Cappucino', cat: 'kopi_susu', variants: [{ id: 'ks_3h', name: 'Hot', price: 13000 }, { id: 'ks_3c', name: 'Ice', price: 15000 }] },
@@ -1105,23 +1068,17 @@
       { id: 'ks_7', name: 'Coffee Tiramisu', cat: 'kopi_susu', variants: [{ id: 'ks_7h', name: 'Hot', price: 15000 }, { id: 'ks_7c', name: 'Ice', price: 18000 }] },
       { id: 'ks_8', name: 'Coffee Susu Gula Aren', cat: 'kopi_susu', variants: [{ id: 'ks_8h', name: 'Hot', price: 15000 }, { id: 'ks_8c', name: 'Ice', price: 18000 }] },
       { id: 'ks_9', name: 'Butterscotch', cat: 'kopi_susu', variants: [{ id: 'ks_9h', name: 'Hot', price: 15000 }, { id: 'ks_9c', name: 'Ice', price: 18000 }] },
-
-      // NON - COFFEE
       { id: 'nc_1', name: 'Red Velvet', cat: 'non_coffee', variants: [{ id: 'nc_1c', name: 'Ice', price: 15000 }] },
       { id: 'nc_2', name: 'Chocolate', cat: 'non_coffee', variants: [{ id: 'nc_2c', name: 'Ice', price: 15000 }] },
       { id: 'nc_3', name: 'Matcha Latte', cat: 'non_coffee', variants: [{ id: 'nc_3c', name: 'Ice', price: 18000 }] },
       { id: 'nc_4', name: 'Taro', cat: 'non_coffee', variants: [{ id: 'nc_4c', name: 'Ice', price: 15000 }] },
       { id: 'nc_5', name: 'Pandan Milky', cat: 'non_coffee', variants: [{ id: 'nc_5c', name: 'Ice', price: 15000 }] },
       { id: 'nc_6', name: 'Strawberry Milky', cat: 'non_coffee', variants: [{ id: 'nc_6c', name: 'Ice', price: 15000 }] },
-
-      // SIGNATURE
       { id: 'sg_1', name: 'Sekawan Coffee', cat: 'signature', variants: [{ id: 'sg_1c', name: 'Ice', price: 20000 }] },
       { id: 'sg_2', name: 'Thepink Venom', cat: 'signature', variants: [{ id: 'sg_2c', name: 'Ice', price: 15000 }] },
       { id: 'sg_3', name: 'Blue Lagon', cat: 'signature', variants: [{ id: 'sg_3c', name: 'Ice', price: 18000 }] },
       { id: 'sg_4', name: 'Manis Lembut', cat: 'signature', variants: [{ id: 'sg_4c', name: 'Ice', price: 18000 }] },
       { id: 'sg_5', name: 'Spanis Latte', cat: 'signature', variants: [{ id: 'sg_5c', name: 'Ice', price: 18000 }] },
-
-      // MINUMAN SEGAR
       { id: 'ms_1', name: 'Anggur', cat: 'minuman_segar', variants: [{ id: 'ms_1c', name: 'Ice', price: 15000 }] },
       { id: 'ms_2', name: 'Blueberry', cat: 'minuman_segar', variants: [{ id: 'ms_2c', name: 'Ice', price: 13000 }] },
       { id: 'ms_3', name: 'Strawberry', cat: 'minuman_segar', variants: [{ id: 'ms_3c', name: 'Ice', price: 13000 }] },
@@ -1197,41 +1154,20 @@
       if (!db || !appId) return;
       const fm = window.firebaseModules;
 
-      // 1. Sinkronisasi Pengaturan GLOBAL (PIN, Menu, Meja, Profil) secara Realtime
       const configDocRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
       fm.onSnapshot(configDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          
-          if (data.ownerPin) { 
-            ownerPin = data.ownerPin; 
-            localStorage.setItem('moka_owner_pin', ownerPin); 
-          }
+          if (data.ownerPin) { ownerPin = data.ownerPin; localStorage.setItem('moka_owner_pin', ownerPin); }
           if (data.name) storeConfig.name = data.name;
           if (data.logo) storeConfig.logo = data.logo;
-          if (data.name || data.logo) {
-            localStorage.setItem('moka_store_config', JSON.stringify(storeConfig));
-            applyStoreConfig();
-          }
-          if (data.maxTableNumber) {
-            maxTableNumber = data.maxTableNumber;
-            localStorage.setItem('moka_max_table', maxTableNumber);
-            if (document.getElementById('tab-meja').classList.contains('active')) renderMeja();
-          }
-          if (data.categories) {
-            categories = data.categories;
-            localStorage.setItem('moka_categories', JSON.stringify(categories));
-            renderCategoriesBar();
-          }
-          if (data.products) {
-            products = data.products;
-            localStorage.setItem('moka_p', JSON.stringify(products));
-            renderProducts();
-          }
+          if (data.name || data.logo) { localStorage.setItem('moka_store_config', JSON.stringify(storeConfig)); applyStoreConfig(); }
+          if (data.maxTableNumber) { maxTableNumber = data.maxTableNumber; localStorage.setItem('moka_max_table', maxTableNumber); if (document.getElementById('tab-meja').classList.contains('active')) renderMeja(); }
+          if (data.categories) { categories = data.categories; localStorage.setItem('moka_categories', JSON.stringify(categories)); renderCategoriesBar(); }
+          if (data.products) { products = data.products; localStorage.setItem('moka_p', JSON.stringify(products)); renderProducts(); }
         }
       }, (err) => console.debug('Config sync err:', err));
 
-      // 2. Sinkronisasi Transaksi secara Realtime
       const txQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'transactions');
       fm.onSnapshot(txQuery, (snapshot) => {
         let loaded = [];
@@ -1241,7 +1177,6 @@
         if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
       }, (err) => console.debug('Tx sync err:', err));
 
-      // 3. Sinkronisasi Kas Keluar secara Realtime
       const expQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'expenses');
       fm.onSnapshot(expQuery, (snapshot) => {
         let loaded = [];
@@ -1251,7 +1186,6 @@
         if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
       }, (err) => console.debug('Exp sync err:', err));
 
-      // 4. Sinkronisasi Meja/Bills secara Realtime
       const billsQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills');
       fm.onSnapshot(billsQuery, (snapshot) => {
         let loaded = [];
@@ -1276,15 +1210,25 @@
       }
     }
 
-    
+    async function cloudSyncBills() {
+      if (!db || !appId) return;
+      const fm = window.firebaseModules;
+      try {
+        const billsRef = fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills');
+        const snap = await fm.getDocs(billsRef);
+        const batchDeletions = [];
+        snap.forEach(d => batchDeletions.push(fm.deleteDoc(d.ref)));
+        await Promise.all(batchDeletions);
+        for (const bill of activeBills) {
+          await fm.addDoc(billsRef, bill);
+        }
+      } catch (err) {
+        console.error('Bills sync failed:', err);
+      }
+    }
 
-    function formatRp(val) {
-      return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
-    }
-    function parseNumeric(val) {
-      if (!val) return 0;
-      return Number(String(val).replace(/[^0-9]/g, '')) || 0;
-    }
+    function formatRp(val) { return 'Rp ' + Number(val || 0).toLocaleString('id-ID'); }
+    function parseNumeric(val) { if (!val) return 0; return Number(String(val).replace(/[^0-9]/g, '')) || 0; }
     function formatRupiahInput(input) {
       let raw = input.value.replace(/[^0-9]/g, '');
       if (!raw) { input.value = ''; return; }
@@ -1336,20 +1280,13 @@
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
-        storeConfig.logo = e.target.result;
-        notify('Logo siap disimpan');
-      };
+      reader.onload = function(e) { storeConfig.logo = e.target.result; notify('Logo siap disimpan'); };
       reader.readAsDataURL(file);
     }
 
     function selectRole(role) {
       document.getElementById('modal-role-select').classList.remove('show');
-      if (role === 'kasir') {
-        checkShiftStatus();
-      } else {
-        document.getElementById('modal-owner-pin').classList.add('show');
-      }
+      if (role === 'kasir') { checkShiftStatus(); } else { document.getElementById('modal-owner-pin').classList.add('show'); }
     }
 
     function cancelOwnerPin() {
@@ -1372,9 +1309,7 @@
         document.getElementById('privasi-content-view').classList.remove('hidden');
         switchTab('privasi');
         notify('Berhasil masuk area Owner');
-      } else {
-        notify('PIN Owner Salah!');
-      }
+      } else { notify('PIN Owner Salah!'); }
     }
 
     function checkShiftStatus() {
@@ -1882,11 +1817,9 @@
         try {
           const existingBill = activeBills.find(b => b.id === newBill.id);
           if (existingBill && existingBill.firestoreId) {
-            // Update HANYA meja yang bersangkutan secara spesifik
             const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', existingBill.firestoreId);
             await fm.setDoc(docRef, newBill);
           } else {
-            // Simpan sebagai meja baru
             await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills'), newBill);
           }
         } catch (err) { console.error('Simpan meja err:', err); }
@@ -1920,7 +1853,6 @@
       await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
 
-      // Hapus HANYA meja yang sudah dilunasi pembayarannya
       if (currentBillId) {
         if (db && appId) {
           const fm = window.firebaseModules;
@@ -2036,41 +1968,34 @@
       const dropHutang = document.getElementById('exp-hutang-dropdown');
       const noteInput = document.getElementById('exp-note');
       const nominalInput = document.getElementById('exp-nominal');
-      const debtIdEl = document.getElementById('exp-debt-id');
+
+      let debtIdEl = document.getElementById('exp-debt-id');
+      if (!debtIdEl) {
+        debtIdEl = document.createElement('input');
+        debtIdEl.type = 'hidden';
+        debtIdEl.id = 'exp-debt-id';
+        group.appendChild(debtIdEl);
+      }
 
       if (type === 'kas') {
-        group.style.display = 'none';
-        inputSup.style.display = 'block';
-        dropHutang.style.display = 'none';
-        if (debtIdEl) debtIdEl.value = '';
+        group.style.display = 'none'; inputSup.style.display = 'block'; dropHutang.style.display = 'none';
+        debtIdEl.value = '';
       } else if (type === 'hutang') {
-        group.style.display = 'block';
-        inputSup.style.display = 'block';
-        dropHutang.style.display = 'none';
-        inputSup.value = '';
-        noteInput.value = '';
-        nominalInput.value = '';
-        if (debtIdEl) debtIdEl.value = '';
+        group.style.display = 'block'; inputSup.style.display = 'block'; dropHutang.style.display = 'none';
+        inputSup.value = ''; noteInput.value = ''; nominalInput.value = ''; debtIdEl.value = '';
       } else if (type === 'bayar_hutang') {
-        group.style.display = 'block';
-        inputSup.style.display = 'none';
-        dropHutang.style.display = 'block';
-
-        // 1. Kumpulkan pelunasan yang sudah pernah dibayar per item nota
+        group.style.display = 'block'; inputSup.style.display = 'none'; dropHutang.style.display = 'block';
+        
         let debtPayments = {};
         let fallbackPayments = {};
-
+        
         expenses.forEach(e => {
           if (e.type === 'bayar_hutang') {
-            if (e.debtId) {
-              debtPayments[e.debtId] = (debtPayments[e.debtId] || 0) + e.amount;
-            } else if (e.supplier) {
-              fallbackPayments[e.supplier] = (fallbackPayments[e.supplier] || 0) + e.amount;
-            }
+            if (e.debtId) debtPayments[e.debtId] = (debtPayments[e.debtId] || 0) + e.amount;
+            else fallbackPayments[e.supplier] = (fallbackPayments[e.supplier] || 0) + e.amount;
           }
         });
 
-        // 2. Saring setiap nota hutang yang belum lunas
         const activeDebts = [];
         expenses.filter(e => e.type === 'hutang').forEach(e => {
           const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
@@ -2078,62 +2003,45 @@
           
           if (fallbackPayments[e.supplier] > 0 && paid < e.amount) {
             let deduct = Math.min(e.amount - paid, fallbackPayments[e.supplier]);
-            paid += deduct;
-            fallbackPayments[e.supplier] -= deduct;
+            paid += deduct; fallbackPayments[e.supplier] -= deduct;
           }
 
           const sisa = e.amount - paid;
-          if (sisa > 0) {
-            activeDebts.push({
-              key,
-              supplier: e.supplier,
-              note: e.note,
-              sisa,
-              date: e.date
-            });
-          }
+          if (sisa > 0) activeDebts.push({ key, supplier: e.supplier, note: e.note, sisa, date: e.date });
         });
 
-        // 3. Masukkan pilihan per nota (Bukan per suplier)
-        let options = '<option value="">-- Pilih Nota Hutang yang Mau Dilunasi --</option>';
+        let options = '<option value="">-- Pilih Nota Hutang --</option>';
         activeDebts.forEach(d => {
           const tgl = d.date ? new Date(d.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '';
-          options += `<option value="${d.key}" data-supplier="${d.supplier}" data-note="${d.note}" data-balance="${d.sisa}">
-            ${d.supplier} - ${d.note} (${formatRp(d.sisa)}) ${tgl ? '[' + tgl + ']' : ''}
-          </option>`;
+          options += `<option value="${d.key}" data-supplier="${d.supplier}" data-note="${d.note}" data-balance="${d.sisa}">${d.supplier} - ${d.note} (${formatRp(d.sisa)}) ${tgl ? '[' + tgl + ']' : ''}</option>`;
         });
-
-        if (activeDebts.length === 0) {
-          options = '<option value="">-- Tidak ada hutang aktif --</option>';
-        }
-
+        if (activeDebts.length === 0) options = '<option value="">-- Tidak ada hutang aktif --</option>';
+        
         dropHutang.innerHTML = options;
-        noteInput.value = '';
-        nominalInput.value = '';
-        if (debtIdEl) debtIdEl.value = '';
+        noteInput.value = 'Pelunasan Hutang'; nominalInput.value = ''; debtIdEl.value = '';
       }
     }
 
     function autofillPelunasan() {
-      const drop = document.getElementById('exp-hutang-dropdown');
-      const selected = drop.options[drop.selectedIndex];
-      const debtIdEl = document.getElementById('exp-debt-id');
+        const drop = document.getElementById('exp-hutang-dropdown');
+        const selected = drop.options[drop.selectedIndex];
+        const debtIdEl = document.getElementById('exp-debt-id');
 
-      if (selected && selected.value) {
-        const bal = selected.getAttribute('data-balance');
-        const sup = selected.getAttribute('data-supplier');
-        const note = selected.getAttribute('data-note');
-
-        document.getElementById('exp-supplier').value = sup;
-        document.getElementById('exp-note').value = 'Pelunasan: ' + note;
-        document.getElementById('exp-nominal').value = Number(bal).toLocaleString('id-ID');
-        if (debtIdEl) debtIdEl.value = selected.value;
-      } else {
-        document.getElementById('exp-supplier').value = '';
-        document.getElementById('exp-note').value = '';
-        document.getElementById('exp-nominal').value = '';
-        if (debtIdEl) debtIdEl.value = '';
-      }
+        if(selected && selected.value) {
+            const bal = selected.getAttribute('data-balance');
+            const sup = selected.getAttribute('data-supplier');
+            const note = selected.getAttribute('data-note');
+            
+            document.getElementById('exp-supplier').value = sup; 
+            document.getElementById('exp-note').value = 'Pelunasan: ' + note;
+            document.getElementById('exp-nominal').value = Number(bal).toLocaleString('id-ID'); 
+            if (debtIdEl) debtIdEl.value = selected.value;
+        } else {
+            document.getElementById('exp-supplier').value = '';
+            document.getElementById('exp-note').value = 'Pelunasan Hutang';
+            document.getElementById('exp-nominal').value = '';
+            if (debtIdEl) debtIdEl.value = '';
+        }
     }
 
     async function saveExpense() {
@@ -2146,55 +2054,39 @@
 
       if (!note || amount <= 0) return;
 
-      const data = {
-        id: 'EXP-' + Date.now(),
-        type,
-        supplier,
-        note,
-        amount,
-        date: new Date().toISOString()
-      };
-
-      // Tautkan id hutang secara spesifik jika transaksi adalah pelunasan
-      if (type === 'bayar_hutang' && debtId) {
-        data.debtId = debtId;
-      }
+      const data = { id: 'EXP-' + Date.now(), type, supplier, note, amount, date: new Date().toISOString() };
+      
+      if (type === 'bayar_hutang' && debtId) data.debtId = debtId;
 
       await cloudAddDocument('expenses', data);
-      closeModalExpense();
-      renderExpenses();
-      notify('Disimpan ke Cloud');
+      closeModalExpense(); renderExpenses(); notify('Disimpan ke Cloud');
     }
 
     function renderExpenses() {
-      let kas = 0;
-      let hutang = 0;
-      let debtPayments = {};
-      let fallbackPayments = {};
+      let kas = 0; let hutang = 0;
+      let debtPayments = {}; let fallbackPayments = {};
 
-      // 1. Hitung kas keluar & pelunasan
+      // 1. Hitung total kas & pelunasan
       expenses.forEach(e => {
         if (e.type === 'kas') kas += e.amount;
         if (e.type === 'bayar_hutang') {
           kas += e.amount;
-          if (e.debtId) {
-            debtPayments[e.debtId] = (debtPayments[e.debtId] || 0) + e.amount;
-          } else if (e.supplier) {
-            fallbackPayments[e.supplier] = (fallbackPayments[e.supplier] || 0) + e.amount;
-          }
+          if (e.debtId) debtPayments[e.debtId] = (debtPayments[e.debtId] || 0) + e.amount;
+          else fallbackPayments[e.supplier] = (fallbackPayments[e.supplier] || 0) + e.amount;
         }
       });
 
-      // 2. Hitung sisa hutang per nota spesifik
+      // 2. Hitung sisa tiap hutang spesifik
       let debtBalances = {};
       expenses.filter(e => e.type === 'hutang').forEach(e => {
         const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
         let paid = debtPayments[key] || 0;
+        
         if (fallbackPayments[e.supplier] > 0 && paid < e.amount) {
           let deduct = Math.min(e.amount - paid, fallbackPayments[e.supplier]);
-          paid += deduct;
-          fallbackPayments[e.supplier] -= deduct;
+          paid += deduct; fallbackPayments[e.supplier] -= deduct;
         }
+        
         const sisa = Math.max(0, e.amount - paid);
         debtBalances[key] = sisa;
         hutang += sisa;
@@ -2203,27 +2095,71 @@
       document.getElementById('total-kas-display').textContent = formatRp(kas);
       document.getElementById('total-hutang-display').textContent = formatRp(hutang);
 
-      // 3. Tampilkan nota hutang yang BELUM lunas saja (nota yang lunas otomatis hilang dari daftar aktif)
-      const visibleExpenses = expenses.filter(e => {
-        if (e.type === 'kas' || e.type === 'bayar_hutang') return true;
+      // --- PEMBAGIAN KELOMPOK TAMPILAN AGAR RAPI ---
+
+      // Kelompok A: Hutang Aktif (Selalu tampil di atas jika belum lunas)
+      const activeDebts = expenses.filter(e => {
         if (e.type === 'hutang') {
           const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
           return debtBalances[key] > 0;
         }
-        return true;
+        return false;
       });
 
-      document.getElementById('expense-container').innerHTML = visibleExpenses.map(e => {
-        let color = e.type === 'hutang' ? 'var(--warning)' : (e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)');
-        let label = e.type === 'kas' ? e.note : (e.type === 'bayar_hutang' ? `${e.note} (${e.supplier})` : `${e.supplier} - ${e.note}`);
-        let badge = e.type === 'kas' ? 'Operasional' : (e.type === 'bayar_hutang' ? 'Pelunasan' : 'Hutang Belum Lunas');
-        
-        return `
-        <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; font-size:11px;">
-          <div><strong>${label}</strong><br><span style="font-size:9px; color:var(--text-muted);">${badge}</span></div>
-          <strong style="color:${color}">${formatRp(e.amount)}</strong>
-        </div>`;
-      }).join('');
+      // Kelompok B: Riwayat Kas & Pelunasan (Dibatasi maksimal 30 data terbaru agar tidak memanjang)
+      const recentHistory = expenses.filter(e => e.type === 'kas' || e.type === 'bayar_hutang').slice(0, 30);
+
+      let html = '';
+
+      // Tampilkan Kelompok A (Hutang)
+      if (activeDebts.length > 0) {
+        html += `<div style="font-size:10px; font-weight:800; color:var(--warning); margin:10px 0 6px 0; text-transform:uppercase;">⚠️ Hutang Belum Lunas</div>`;
+        html += activeDebts.map(e => {
+            const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
+            const valDisplay = formatRp(debtBalances[key]);
+            let d = new Date(e.date);
+            let tgl = isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WIB';
+
+            return `
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+              <div style="flex:1; padding-right:8px;">
+                <div style="font-size:9px; color:#d97706; font-weight:800; margin-bottom:4px;">📅 ${tgl}</div>
+                <strong style="color:#92400e; line-height:1.4; display:block;">${e.supplier} - ${e.note}</strong>
+                <span style="font-size:9px; color:#b45309;">Hutang Belum Lunas</span>
+              </div>
+              <strong style="color:var(--warning); white-space:nowrap; font-size:13px;">${valDisplay}</strong>
+            </div>`;
+        }).join('');
+      }
+
+      // Tampilkan Kelompok B (Riwayat Terakhir)
+      if (recentHistory.length > 0) {
+        html += `<div style="font-size:10px; font-weight:800; color:var(--text-muted); margin:14px 0 6px 0; text-transform:uppercase;">⏳ 30 Riwayat Terakhir</div>`;
+        html += recentHistory.map(e => {
+            let color = e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)';
+            let label = e.type === 'bayar_hutang' ? e.note : e.note;
+            let badge = e.type === 'bayar_hutang' ? `Pelunasan ke: ${e.supplier}` : 'Operasional';
+            
+            let d = new Date(e.date);
+            let tgl = isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WIB';
+
+            return `
+            <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+              <div style="flex:1; padding-right:8px;">
+                <div style="font-size:9px; color:var(--primary); font-weight:800; margin-bottom:4px;">📅 ${tgl}</div>
+                <strong style="color:#0f172a; line-height:1.4; display:block;">${label}</strong>
+                <span style="font-size:9px; color:var(--text-muted);">${badge}</span>
+              </div>
+              <strong style="color:${color}; white-space:nowrap; font-size:13px;">${formatRp(e.amount)}</strong>
+            </div>`;
+        }).join('');
+      }
+
+      if (html === '') {
+          html = `<div style="text-align:center; padding:30px 10px; font-size:11px; color:#94a3b8;">Belum ada data pengeluaran / hutang.</div>`;
+      }
+
+      document.getElementById('expense-container').innerHTML = html;
     }
 
     function setLapPeriod(p) {
@@ -2242,6 +2178,67 @@
     function isSameDay(d1, d2) { return d1.toDateString() === d2.toDateString(); }
     function isSameWeek(d1, d2) { return Math.abs(d1 - d2) / (1000 * 60 * 60 * 24) <= 7; }
     function isSameMonth(d1, d2) { return d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear(); }
+
+    /* --- FUNGSI MENGGAMBAR GRAFIK (SPARKLINE) SECARA RIIL --- */
+    function updateSparkline(txList, period) {
+      const container = document.getElementById('dynamic-sparkline');
+      if (!txList || txList.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      let buckets = [];
+      
+      if (period === 'harian') {
+        let hourly = Array(24).fill(0);
+        txList.forEach(t => {
+          let h = new Date(t.date).getHours();
+          hourly[h] += t.total;
+        });
+        buckets = hourly;
+      } else {
+        let dailyMap = {};
+        txList.forEach(t => {
+          let d = new Date(t.date).toISOString().split('T')[0];
+          dailyMap[d] = (dailyMap[d] || 0) + t.total;
+        });
+        let keys = Object.keys(dailyMap).sort();
+        buckets = keys.map(k => dailyMap[k]);
+      }
+
+      if (buckets.length === 0) { container.innerHTML = ''; return; }
+      if (buckets.length === 1) { buckets = [0, buckets[0], 0]; } 
+
+      let maxVal = Math.max(...buckets);
+      if (maxVal === 0) maxVal = 1;
+
+      let width = 100;
+      let height = 40;
+      let points = [];
+
+      buckets.forEach((val, idx) => {
+        let x = (idx / (buckets.length - 1)) * width;
+        let y = height - ((val / maxVal) * (height - 5)); 
+        points.push({x, y});
+      });
+
+      let pathData = `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
+      for (let i = 0; i < points.length - 1; i++) {
+        let curr = points[i];
+        let next = points[i + 1];
+        let midX = (curr.x + next.x) / 2;
+        pathData += ` C${midX.toFixed(1)},${curr.y.toFixed(1)} ${midX.toFixed(1)},${next.y.toFixed(1)} ${next.x.toFixed(1)},${next.y.toFixed(1)}`;
+      }
+
+      let fillPath = `${pathData} L${width},${height} L0,${height} Z`;
+
+      container.innerHTML = `
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
+          <path fill="rgba(255,255,255,0.15)" d="${fillPath}"></path>
+          <path fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" d="${pathData}"></path>
+        </svg>
+      `;
+    }
 
     function renderReports() {
       const now = new Date();
@@ -2327,6 +2324,9 @@
 
       document.getElementById('profit-sharing-list').innerHTML = PROFIT_SHARING_MEMBERS.map(m => `
         <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
+
+      // Menggambar Grafik Otomatis Secara Akurat ke Background
+      updateSparkline(currTx, currentLapPeriod);
     }
 
     function shareWhatsAppReport() {
