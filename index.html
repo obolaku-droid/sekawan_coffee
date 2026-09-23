@@ -502,22 +502,6 @@
       cursor: pointer;
     }
     .lap-pill.active { background: #ffffff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-
-    /* Efek Grafik Gelombang Halus Bergerak */
-    @keyframes smoothGraphFlow {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
-    .animated-graph-bg {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 200%;
-      height: 70px;
-      z-index: 0;
-      pointer-events: none;
-      animation: smoothGraphFlow 5s linear infinite;
-    }
   </style>
 </head>
 <body>
@@ -752,7 +736,7 @@
               <button class="lap-pill" onclick="setLapPeriod('custom')">Custom 📅</button>
             </div>
             
-            <!-- Filter Tanggal Custom (Awalnya Sembunyi) -->
+            <!-- Filter Tanggal Custom -->
             <div id="custom-date-filter" style="display:none; gap:6px; margin-bottom:10px;">
               <input type="date" id="date-start" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
               <span style="font-size:10px; padding-top:8px;">s/d</span>
@@ -763,16 +747,11 @@
             <!-- Omzet Utama & Trend Growth -->
             <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
               
-              <!-- Grafik Gelombang (Animasi Smooth & Aktif) -->
-              <div class="animated-graph-bg">
-                <svg viewBox="0 0 2400 120" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
-                  <path fill="rgba(255,255,255,0.15)" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60 L 2400 120 L 0 120 Z"></path>
-                  <path fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="4" stroke-linecap="round" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60"></path>
-                </svg>
-              </div>
+              <!-- Grafik Dinamis Real-Time (Z-Index 0: Di belakang teks) -->
+              <div id="dynamic-sparkline" style="position:absolute; bottom:0; left:0; width:100%; height:60%; z-index:0; pointer-events:none; opacity:0.8;"></div>
 
-              <!-- Konten Teks Card (z-index 2 agar tampil di atas grafik) -->
-              <div style="position:relative; z-index:2;">
+              <!-- Konten Teks Card (Z-Index 10: Selalu di atas grafik agar jelas terbaca) -->
+              <div style="position:relative; z-index:10;">
                 <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
                 <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
                   <div id="lap-omzet" style="font-size:24px; font-weight:800;">Rp 0</div>
@@ -787,25 +766,21 @@
 
             <!-- ERP Analitik Grid -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
-              <!-- Detail Pembayaran -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">METODE BAYAR</div>
                 <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>💵 Tunai:</span> <strong id="lap-tunai">Rp 0</strong></div>
                 <div style="font-size:11px; display:flex; justify-content:space-between;"><span>📱 QRIS:</span> <strong id="lap-qris">Rp 0</strong></div>
               </div>
-              <!-- Detail Pengeluaran -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">PENGELUARAN</div>
                 <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>Keluar:</span> <strong id="lap-kas" style="color:var(--danger)">Rp 0</strong></div>
                 <div style="font-size:11px; display:flex; justify-content:space-between;"><span>Hutang:</span> <strong id="lap-hutang" style="color:var(--warning)">Rp 0</strong></div>
               </div>
-              <!-- Analisa Basket Size -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">ANALISA PESANAN</div>
                 <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed var(--border); padding-bottom:4px;"><span>Rata2 / Trx:</span> <strong id="lap-aov" style="color:#0ea5e9">Rp 0</strong></div>
                 <div style="font-size:11px; display:flex; justify-content:space-between;"><span>Takeaway:</span> <strong id="lap-takeaway">0%</strong></div>
               </div>
-              <!-- Top Menu -->
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">TOP 3 MENU</div>
                 <div id="lap-top-menu" style="font-size:10px; display:flex; flex-direction:column; gap:3px;">
@@ -973,11 +948,7 @@
       </div>
       <div id="supplier-input-group" style="margin-bottom:8px; display:none;">
         <label style="font-size:10px; font-weight:600;">Nama Supplier / Pilih Hutang</label>
-        
-        <!-- Input untuk nambah hutang baru -->
         <input type="text" id="exp-supplier" placeholder="Nama Supplier..." style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
-        
-        <!-- Dropdown khusus untuk melunasi hutang -->
         <select id="exp-hutang-dropdown" onchange="autofillPelunasan()" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; display:none;"></select>
       </div>
       
@@ -1087,14 +1058,11 @@
     ];
 
     const INITIAL_PRODUCTS = [
-      // BASIC ESPRESSO
       { id: 'be_1', name: 'Espresso', cat: 'basic_espresso', variants: [{ id: 'be_1h', name: 'Hot', price: 10000 }, { id: 'be_1c', name: 'Ice', price: 10000 }] },
       { id: 'be_2', name: 'Double Espresso', cat: 'basic_espresso', variants: [{ id: 'be_2h', name: 'Hot', price: 13000 }, { id: 'be_2c', name: 'Ice', price: 15000 }] },
       { id: 'be_3', name: 'Americano', cat: 'basic_espresso', variants: [{ id: 'be_3h', name: 'Hot', price: 13000 }, { id: 'be_3c', name: 'Ice', price: 15000 }] },
       { id: 'be_4', name: 'Longo', cat: 'basic_espresso', variants: [{ id: 'be_4h', name: 'Hot', price: 13000 }, { id: 'be_4c', name: 'Ice', price: 15000 }] },
       { id: 'be_5', name: 'Long Black', cat: 'basic_espresso', variants: [{ id: 'be_5h', name: 'Hot', price: 13000 }, { id: 'be_5c', name: 'Ice', price: 15000 }] },
-
-      // KOPI SUSU
       { id: 'ks_1', name: 'Sanger Espresso', cat: 'kopi_susu', variants: [{ id: 'ks_1h', name: 'Hot', price: 13000 }, { id: 'ks_1c', name: 'Ice', price: 15000 }] },
       { id: 'ks_2', name: 'Coffee Latte', cat: 'kopi_susu', variants: [{ id: 'ks_2h', name: 'Hot', price: 13000 }, { id: 'ks_2c', name: 'Ice', price: 15000 }] },
       { id: 'ks_3', name: 'Cappucino', cat: 'kopi_susu', variants: [{ id: 'ks_3h', name: 'Hot', price: 13000 }, { id: 'ks_3c', name: 'Ice', price: 15000 }] },
@@ -1104,23 +1072,17 @@
       { id: 'ks_7', name: 'Coffee Tiramisu', cat: 'kopi_susu', variants: [{ id: 'ks_7h', name: 'Hot', price: 15000 }, { id: 'ks_7c', name: 'Ice', price: 18000 }] },
       { id: 'ks_8', name: 'Coffee Susu Gula Aren', cat: 'kopi_susu', variants: [{ id: 'ks_8h', name: 'Hot', price: 15000 }, { id: 'ks_8c', name: 'Ice', price: 18000 }] },
       { id: 'ks_9', name: 'Butterscotch', cat: 'kopi_susu', variants: [{ id: 'ks_9h', name: 'Hot', price: 15000 }, { id: 'ks_9c', name: 'Ice', price: 18000 }] },
-
-      // NON - COFFEE
       { id: 'nc_1', name: 'Red Velvet', cat: 'non_coffee', variants: [{ id: 'nc_1c', name: 'Ice', price: 15000 }] },
       { id: 'nc_2', name: 'Chocolate', cat: 'non_coffee', variants: [{ id: 'nc_2c', name: 'Ice', price: 15000 }] },
       { id: 'nc_3', name: 'Matcha Latte', cat: 'non_coffee', variants: [{ id: 'nc_3c', name: 'Ice', price: 18000 }] },
       { id: 'nc_4', name: 'Taro', cat: 'non_coffee', variants: [{ id: 'nc_4c', name: 'Ice', price: 15000 }] },
       { id: 'nc_5', name: 'Pandan Milky', cat: 'non_coffee', variants: [{ id: 'nc_5c', name: 'Ice', price: 15000 }] },
       { id: 'nc_6', name: 'Strawberry Milky', cat: 'non_coffee', variants: [{ id: 'nc_6c', name: 'Ice', price: 15000 }] },
-
-      // SIGNATURE
       { id: 'sg_1', name: 'Sekawan Coffee', cat: 'signature', variants: [{ id: 'sg_1c', name: 'Ice', price: 20000 }] },
       { id: 'sg_2', name: 'Thepink Venom', cat: 'signature', variants: [{ id: 'sg_2c', name: 'Ice', price: 15000 }] },
       { id: 'sg_3', name: 'Blue Lagon', cat: 'signature', variants: [{ id: 'sg_3c', name: 'Ice', price: 18000 }] },
       { id: 'sg_4', name: 'Manis Lembut', cat: 'signature', variants: [{ id: 'sg_4c', name: 'Ice', price: 18000 }] },
       { id: 'sg_5', name: 'Spanis Latte', cat: 'signature', variants: [{ id: 'sg_5c', name: 'Ice', price: 18000 }] },
-
-      // MINUMAN SEGAR
       { id: 'ms_1', name: 'Anggur', cat: 'minuman_segar', variants: [{ id: 'ms_1c', name: 'Ice', price: 15000 }] },
       { id: 'ms_2', name: 'Blueberry', cat: 'minuman_segar', variants: [{ id: 'ms_2c', name: 'Ice', price: 13000 }] },
       { id: 'ms_3', name: 'Strawberry', cat: 'minuman_segar', variants: [{ id: 'ms_3c', name: 'Ice', price: 13000 }] },
@@ -1196,41 +1158,20 @@
       if (!db || !appId) return;
       const fm = window.firebaseModules;
 
-      // 1. Sinkronisasi Pengaturan GLOBAL (PIN, Menu, Meja, Profil) secara Realtime
       const configDocRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
       fm.onSnapshot(configDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          
-          if (data.ownerPin) { 
-            ownerPin = data.ownerPin; 
-            localStorage.setItem('moka_owner_pin', ownerPin); 
-          }
+          if (data.ownerPin) { ownerPin = data.ownerPin; localStorage.setItem('moka_owner_pin', ownerPin); }
           if (data.name) storeConfig.name = data.name;
           if (data.logo) storeConfig.logo = data.logo;
-          if (data.name || data.logo) {
-            localStorage.setItem('moka_store_config', JSON.stringify(storeConfig));
-            applyStoreConfig();
-          }
-          if (data.maxTableNumber) {
-            maxTableNumber = data.maxTableNumber;
-            localStorage.setItem('moka_max_table', maxTableNumber);
-            if (document.getElementById('tab-meja').classList.contains('active')) renderMeja();
-          }
-          if (data.categories) {
-            categories = data.categories;
-            localStorage.setItem('moka_categories', JSON.stringify(categories));
-            renderCategoriesBar();
-          }
-          if (data.products) {
-            products = data.products;
-            localStorage.setItem('moka_p', JSON.stringify(products));
-            renderProducts();
-          }
+          if (data.name || data.logo) { localStorage.setItem('moka_store_config', JSON.stringify(storeConfig)); applyStoreConfig(); }
+          if (data.maxTableNumber) { maxTableNumber = data.maxTableNumber; localStorage.setItem('moka_max_table', maxTableNumber); if (document.getElementById('tab-meja').classList.contains('active')) renderMeja(); }
+          if (data.categories) { categories = data.categories; localStorage.setItem('moka_categories', JSON.stringify(categories)); renderCategoriesBar(); }
+          if (data.products) { products = data.products; localStorage.setItem('moka_p', JSON.stringify(products)); renderProducts(); }
         }
       }, (err) => console.debug('Config sync err:', err));
 
-      // 2. Sinkronisasi Transaksi secara Realtime
       const txQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'transactions');
       fm.onSnapshot(txQuery, (snapshot) => {
         let loaded = [];
@@ -1240,7 +1181,6 @@
         if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
       }, (err) => console.debug('Tx sync err:', err));
 
-      // 3. Sinkronisasi Kas Keluar secara Realtime
       const expQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'expenses');
       fm.onSnapshot(expQuery, (snapshot) => {
         let loaded = [];
@@ -1250,7 +1190,6 @@
         if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
       }, (err) => console.debug('Exp sync err:', err));
 
-      // 4. Sinkronisasi Meja/Bills secara Realtime
       const billsQuery = fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills');
       fm.onSnapshot(billsQuery, (snapshot) => {
         let loaded = [];
@@ -1292,13 +1231,8 @@
       }
     }
 
-    function formatRp(val) {
-      return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
-    }
-    function parseNumeric(val) {
-      if (!val) return 0;
-      return Number(String(val).replace(/[^0-9]/g, '')) || 0;
-    }
+    function formatRp(val) { return 'Rp ' + Number(val || 0).toLocaleString('id-ID'); }
+    function parseNumeric(val) { if (!val) return 0; return Number(String(val).replace(/[^0-9]/g, '')) || 0; }
     function formatRupiahInput(input) {
       let raw = input.value.replace(/[^0-9]/g, '');
       if (!raw) { input.value = ''; return; }
@@ -1350,20 +1284,13 @@
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
-        storeConfig.logo = e.target.result;
-        notify('Logo siap disimpan');
-      };
+      reader.onload = function(e) { storeConfig.logo = e.target.result; notify('Logo siap disimpan'); };
       reader.readAsDataURL(file);
     }
 
     function selectRole(role) {
       document.getElementById('modal-role-select').classList.remove('show');
-      if (role === 'kasir') {
-        checkShiftStatus();
-      } else {
-        document.getElementById('modal-owner-pin').classList.add('show');
-      }
+      if (role === 'kasir') { checkShiftStatus(); } else { document.getElementById('modal-owner-pin').classList.add('show'); }
     }
 
     function cancelOwnerPin() {
@@ -1386,9 +1313,7 @@
         document.getElementById('privasi-content-view').classList.remove('hidden');
         switchTab('privasi');
         notify('Berhasil masuk area Owner');
-      } else {
-        notify('PIN Owner Salah!');
-      }
+      } else { notify('PIN Owner Salah!'); }
     }
 
     function checkShiftStatus() {
@@ -2115,6 +2040,62 @@
     function isSameWeek(d1, d2) { return Math.abs(d1 - d2) / (1000 * 60 * 60 * 24) <= 7; }
     function isSameMonth(d1, d2) { return d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear(); }
 
+    /* --- FUNGSI MENGGAMBAR GRAFIK (SPARKLINE) SECARA RIIL --- */
+    function updateSparkline(txList, period) {
+      const container = document.getElementById('dynamic-sparkline');
+      if (!txList || txList.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      let buckets = [];
+      
+      if (period === 'harian') {
+        // Jika harian, gambar grafik per jam (24 jam)
+        let hourly = Array(24).fill(0);
+        txList.forEach(t => {
+          let h = new Date(t.date).getHours();
+          hourly[h] += t.total;
+        });
+        buckets = hourly;
+      } else {
+        // Jika mingguan/bulanan/custom, gambar grafik per hari
+        let dailyMap = {};
+        txList.forEach(t => {
+          let d = new Date(t.date).toISOString().split('T')[0];
+          dailyMap[d] = (dailyMap[d] || 0) + t.total;
+        });
+        let keys = Object.keys(dailyMap).sort();
+        buckets = keys.map(k => dailyMap[k]);
+      }
+
+      if (buckets.length === 0) { container.innerHTML = ''; return; }
+      if (buckets.length === 1) { buckets.push(buckets[0]); } // Agar tidak cuma 1 titik (jadi minimal garis lurus)
+
+      let maxVal = Math.max(...buckets);
+      if (maxVal === 0) maxVal = 1;
+
+      let width = 100;
+      let height = 40;
+      let points = [];
+
+      buckets.forEach((val, idx) => {
+        let x = (idx / (buckets.length - 1)) * width;
+        let y = height - ((val / maxVal) * (height - 5)); // 5px padding di atas supaya ujung grafik tidak kepotong
+        points.push({x, y});
+      });
+
+      let fillPath = `M0,${height} ` + points.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ` L${width},${height} Z`;
+      let strokePath = `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)} ` + points.slice(1).map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+      container.innerHTML = `
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
+          <path fill="rgba(255,255,255,0.15)" d="${fillPath}"></path>
+          <path fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" d="${strokePath}"></path>
+        </svg>
+      `;
+    }
+
     function renderReports() {
       const now = new Date();
       let prev = new Date();
@@ -2199,6 +2180,9 @@
 
       document.getElementById('profit-sharing-list').innerHTML = PROFIT_SHARING_MEMBERS.map(m => `
         <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
+
+      // Menggambar Grafik Otomatis Secara Akurat ke Background
+      updateSparkline(currTx, currentLapPeriod);
     }
 
     function shareWhatsAppReport() {
