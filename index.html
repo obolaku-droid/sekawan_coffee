@@ -979,6 +979,7 @@
         
         <!-- Dropdown khusus untuk melunasi hutang -->
         <select id="exp-hutang-dropdown" onchange="autofillPelunasan()" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; display:none;"></select>
+        <input type="hidden" id="exp-debt-id" value="">
       </div>
       
       <div style="margin-bottom:8px;">
@@ -2021,6 +2022,8 @@
       document.getElementById('exp-supplier').value = '';
       document.getElementById('exp-note').value = '';
       document.getElementById('exp-nominal').value = '';
+      const debtIdEl = document.getElementById('exp-debt-id');
+      if (debtIdEl) debtIdEl.value = '';
       toggleSupplierInput();
       document.getElementById('modal-expense').classList.add('show');
     }
@@ -2033,41 +2036,104 @@
       const dropHutang = document.getElementById('exp-hutang-dropdown');
       const noteInput = document.getElementById('exp-note');
       const nominalInput = document.getElementById('exp-nominal');
+      const debtIdEl = document.getElementById('exp-debt-id');
 
       if (type === 'kas') {
-        group.style.display = 'none'; inputSup.style.display = 'block'; dropHutang.style.display = 'none';
+        group.style.display = 'none';
+        inputSup.style.display = 'block';
+        dropHutang.style.display = 'none';
+        if (debtIdEl) debtIdEl.value = '';
       } else if (type === 'hutang') {
-        group.style.display = 'block'; inputSup.style.display = 'block'; dropHutang.style.display = 'none';
-        inputSup.value = ''; noteInput.value = ''; nominalInput.value = '';
-      } else if (type === 'bayar_hutang') {
-        group.style.display = 'block'; inputSup.style.display = 'none'; dropHutang.style.display = 'block';
-        let supplierBalances = {};
-        expenses.forEach(e => {
-            if(e.type === 'hutang') supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
-            else if (e.type === 'bayar_hutang') supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount;
-        });
-        let options = '<option value="">-- Pilih Hutang yang Mau Dilunasi --</option>';
-        for(const [sup, bal] of Object.entries(supplierBalances)) {
-            if(bal > 0) options += `<option value="${sup}" data-balance="${bal}">${sup} (Sisa: ${formatRp(bal)})</option>`;
-        }
-        if(options === '<option value="">-- Pilih Hutang yang Mau Dilunasi --</option>') options = '<option value="">-- Tidak ada hutang aktif --</option>';
-        dropHutang.innerHTML = options;
-        noteInput.value = 'Pelunasan Hutang';
+        group.style.display = 'block';
+        inputSup.style.display = 'block';
+        dropHutang.style.display = 'none';
+        inputSup.value = '';
+        noteInput.value = '';
         nominalInput.value = '';
+        if (debtIdEl) debtIdEl.value = '';
+      } else if (type === 'bayar_hutang') {
+        group.style.display = 'block';
+        inputSup.style.display = 'none';
+        dropHutang.style.display = 'block';
+
+        // 1. Kumpulkan pelunasan yang sudah pernah dibayar per item nota
+        let debtPayments = {};
+        let fallbackPayments = {};
+
+        expenses.forEach(e => {
+          if (e.type === 'bayar_hutang') {
+            if (e.debtId) {
+              debtPayments[e.debtId] = (debtPayments[e.debtId] || 0) + e.amount;
+            } else if (e.supplier) {
+              fallbackPayments[e.supplier] = (fallbackPayments[e.supplier] || 0) + e.amount;
+            }
+          }
+        });
+
+        // 2. Saring setiap nota hutang yang belum lunas
+        const activeDebts = [];
+        expenses.filter(e => e.type === 'hutang').forEach(e => {
+          const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
+          let paid = debtPayments[key] || 0;
+          
+          if (fallbackPayments[e.supplier] > 0 && paid < e.amount) {
+            let deduct = Math.min(e.amount - paid, fallbackPayments[e.supplier]);
+            paid += deduct;
+            fallbackPayments[e.supplier] -= deduct;
+          }
+
+          const sisa = e.amount - paid;
+          if (sisa > 0) {
+            activeDebts.push({
+              key,
+              supplier: e.supplier,
+              note: e.note,
+              sisa,
+              date: e.date
+            });
+          }
+        });
+
+        // 3. Masukkan pilihan per nota (Bukan per suplier)
+        let options = '<option value="">-- Pilih Nota Hutang yang Mau Dilunasi --</option>';
+        activeDebts.forEach(d => {
+          const tgl = d.date ? new Date(d.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '';
+          options += `<option value="${d.key}" data-supplier="${d.supplier}" data-note="${d.note}" data-balance="${d.sisa}">
+            ${d.supplier} - ${d.note} (${formatRp(d.sisa)}) ${tgl ? '[' + tgl + ']' : ''}
+          </option>`;
+        });
+
+        if (activeDebts.length === 0) {
+          options = '<option value="">-- Tidak ada hutang aktif --</option>';
+        }
+
+        dropHutang.innerHTML = options;
+        noteInput.value = '';
+        nominalInput.value = '';
+        if (debtIdEl) debtIdEl.value = '';
       }
     }
 
     function autofillPelunasan() {
-        const drop = document.getElementById('exp-hutang-dropdown');
-        const selected = drop.options[drop.selectedIndex];
-        if(selected && selected.value) {
-            const bal = selected.getAttribute('data-balance');
-            document.getElementById('exp-supplier').value = selected.value; 
-            document.getElementById('exp-nominal').value = Number(bal).toLocaleString('id-ID'); 
-        } else {
-            document.getElementById('exp-supplier').value = '';
-            document.getElementById('exp-nominal').value = '';
-        }
+      const drop = document.getElementById('exp-hutang-dropdown');
+      const selected = drop.options[drop.selectedIndex];
+      const debtIdEl = document.getElementById('exp-debt-id');
+
+      if (selected && selected.value) {
+        const bal = selected.getAttribute('data-balance');
+        const sup = selected.getAttribute('data-supplier');
+        const note = selected.getAttribute('data-note');
+
+        document.getElementById('exp-supplier').value = sup;
+        document.getElementById('exp-note').value = 'Pelunasan: ' + note;
+        document.getElementById('exp-nominal').value = Number(bal).toLocaleString('id-ID');
+        if (debtIdEl) debtIdEl.value = selected.value;
+      } else {
+        document.getElementById('exp-supplier').value = '';
+        document.getElementById('exp-note').value = '';
+        document.getElementById('exp-nominal').value = '';
+        if (debtIdEl) debtIdEl.value = '';
+      }
     }
 
     async function saveExpense() {
@@ -2075,36 +2141,86 @@
       const supplier = document.getElementById('exp-supplier').value.trim();
       const note = document.getElementById('exp-note').value.trim();
       const amount = parseNumeric(document.getElementById('exp-nominal').value);
+      const debtIdEl = document.getElementById('exp-debt-id');
+      const debtId = debtIdEl ? debtIdEl.value : '';
+
       if (!note || amount <= 0) return;
-      await cloudAddDocument('expenses', { type, supplier, note, amount, date: new Date().toISOString() });
-      closeModalExpense(); renderExpenses(); notify('Disimpan ke Cloud');
+
+      const data = {
+        id: 'EXP-' + Date.now(),
+        type,
+        supplier,
+        note,
+        amount,
+        date: new Date().toISOString()
+      };
+
+      // Tautkan id hutang secara spesifik jika transaksi adalah pelunasan
+      if (type === 'bayar_hutang' && debtId) {
+        data.debtId = debtId;
+      }
+
+      await cloudAddDocument('expenses', data);
+      closeModalExpense();
+      renderExpenses();
+      notify('Disimpan ke Cloud');
     }
 
     function renderExpenses() {
-      let kas = 0; let hutang = 0;
-      let supplierBalances = {};
+      let kas = 0;
+      let hutang = 0;
+      let debtPayments = {};
+      let fallbackPayments = {};
 
+      // 1. Hitung kas keluar & pelunasan
       expenses.forEach(e => {
         if (e.type === 'kas') kas += e.amount;
-        if (e.type === 'hutang') { hutang += e.amount; supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount; }
-        if (e.type === 'bayar_hutang') { kas += e.amount; hutang -= e.amount; supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount; }
+        if (e.type === 'bayar_hutang') {
+          kas += e.amount;
+          if (e.debtId) {
+            debtPayments[e.debtId] = (debtPayments[e.debtId] || 0) + e.amount;
+          } else if (e.supplier) {
+            fallbackPayments[e.supplier] = (fallbackPayments[e.supplier] || 0) + e.amount;
+          }
+        }
+      });
+
+      // 2. Hitung sisa hutang per nota spesifik
+      let debtBalances = {};
+      expenses.filter(e => e.type === 'hutang').forEach(e => {
+        const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
+        let paid = debtPayments[key] || 0;
+        if (fallbackPayments[e.supplier] > 0 && paid < e.amount) {
+          let deduct = Math.min(e.amount - paid, fallbackPayments[e.supplier]);
+          paid += deduct;
+          fallbackPayments[e.supplier] -= deduct;
+        }
+        const sisa = Math.max(0, e.amount - paid);
+        debtBalances[key] = sisa;
+        hutang += sisa;
       });
 
       document.getElementById('total-kas-display').textContent = formatRp(kas);
       document.getElementById('total-hutang-display').textContent = formatRp(hutang);
 
+      // 3. Tampilkan nota hutang yang BELUM lunas saja (nota yang lunas otomatis hilang dari daftar aktif)
       const visibleExpenses = expenses.filter(e => {
         if (e.type === 'kas' || e.type === 'bayar_hutang') return true;
-        if (e.type === 'hutang') return supplierBalances[e.supplier] > 0;
+        if (e.type === 'hutang') {
+          const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
+          return debtBalances[key] > 0;
+        }
         return true;
       });
 
       document.getElementById('expense-container').innerHTML = visibleExpenses.map(e => {
         let color = e.type === 'hutang' ? 'var(--warning)' : (e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)');
-        let label = e.type === 'kas' ? e.note : (e.type === 'bayar_hutang' ? `Pelunasan: ${e.supplier}` : `Hutang: ${e.supplier}`);
+        let label = e.type === 'kas' ? e.note : (e.type === 'bayar_hutang' ? `${e.note} (${e.supplier})` : `${e.supplier} - ${e.note}`);
+        let badge = e.type === 'kas' ? 'Operasional' : (e.type === 'bayar_hutang' ? 'Pelunasan' : 'Hutang Belum Lunas');
+        
         return `
         <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; font-size:11px;">
-          <div><strong>${label}</strong><br><span style="font-size:9px; color:var(--text-muted);">${e.type === 'kas' ? 'Operasional' : e.note}</span></div>
+          <div><strong>${label}</strong><br><span style="font-size:9px; color:var(--text-muted);">${badge}</span></div>
           <strong style="color:${color}">${formatRp(e.amount)}</strong>
         </div>`;
       }).join('');
