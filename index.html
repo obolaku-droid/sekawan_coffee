@@ -2389,12 +2389,10 @@
       const totalPorsi = mTx.reduce((acc, t) => acc + t.items.reduce((sum, i) => sum + i.qty, 0), 0);
       
       const biayaOperasional = mExp.filter(e => e.type === 'kas').reduce((acc, e) => acc + e.amount, 0);
-      const hutangBulanIni = mExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0);
       const pelunasanBulanIni = mExp.filter(e => e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
       
       const totalBiaya = biayaOperasional + pelunasanBulanIni;
       const labaBersih = omzet - totalBiaya;
-      const sisaHutang = hutangBulanIni - pelunasanBulanIni;
       
       const marginLaba = omzet > 0 ? ((labaBersih / omzet) * 100).toFixed(1) : 0;
       const rasioBiaya = omzet > 0 ? ((totalBiaya / omzet) * 100).toFixed(1) : 0;
@@ -2409,28 +2407,58 @@
       });
       const topItems = Object.entries(itemStats).sort((a,b) => b[1].omzet - a[1].omzet);
 
-      let supplierBalances = {};
-      mExp.forEach(e => {
-        if(e.type === 'hutang') supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
-        if(e.type === 'bayar_hutang') supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount;
+      // --- PERBAIKAN LOGIKA HUTANG DI PDF (PER-ITEM & KRONOLOGIS) ---
+      let debtPayments = {}; let fallbackPayments = {};
+      expenses.forEach(e => {
+        if (e.type === 'bayar_hutang') {
+          if (e.debtId) debtPayments[e.debtId] = (debtPayments[e.debtId] || 0) + e.amount;
+          else fallbackPayments[e.supplier] = (fallbackPayments[e.supplier] || 0) + e.amount;
+        }
       });
+
+      const activeDebts = [];
+      let totalSisaHutang = 0;
+      
+      expenses.filter(e => e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(e => {
+        const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
+        let paid = debtPayments[key] || 0;
+        
+        if (fallbackPayments[e.supplier] > 0 && paid < e.amount) {
+          let deduct = Math.min(e.amount - paid, fallbackPayments[e.supplier]);
+          paid += deduct; fallbackPayments[e.supplier] -= deduct;
+        }
+        
+        const sisa = Math.max(0, e.amount - paid);
+        if (sisa > 0) {
+            activeDebts.push({ ...e, sisa });
+            totalSisaHutang += sisa;
+        }
+      });
+
+      const sisaHutang = totalSisaHutang; // Menggunakan sisa hutang aktual secara keseluruhan
+
+      // Generate HTML Tabel Hutang (dengan Tanggal dan Keterangan Item, tanpa Jatuh Tempo)
       let activeHutangHTML = '';
-      for(const [sup, bal] of Object.entries(supplierBalances)) {
-          if(bal > 0) activeHutangHTML += `<tr><td>${sup}</td><td>Bahan Baku</td><td>-</td><td>${formatRp(bal)}</td></tr>`;
-      }
+      activeDebts.forEach(d => {
+          let tgl = new Date(d.date).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+          activeHutangHTML += `<tr><td>${tgl}</td><td>${d.supplier}</td><td>${d.note}</td><td>${formatRp(d.sisa)}</td></tr>`;
+      });
       if(activeHutangHTML === '') activeHutangHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada hutang aktif</td></tr>';
 
+      // --- KAS KELUAR & PELUNASAN (Tambahan Tanggal & Item) ---
       let rincianKasKeluarHTML = '';
       mExp.filter(e => e.type === 'kas').forEach(e => {
           const pct = omzet > 0 ? ((e.amount / omzet) * 100).toFixed(1) : 0;
-          rincianKasKeluarHTML += `<tr><td style="padding-left: 20px;">- ${e.note}</td><td>(${formatRp(e.amount)})</td><td>${pct}%</td></tr>`;
+          let tgl = new Date(e.date).toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' });
+          rincianKasKeluarHTML += `<tr><td style="padding-left: 20px;">[${tgl}] ${e.note}</td><td>(${formatRp(e.amount)})</td><td>${pct}%</td></tr>`;
       });
       if(rincianKasKeluarHTML === '') rincianKasKeluarHTML = '<tr><td style="padding-left: 20px; color:#999;">- Tidak ada kas keluar</td><td>(Rp 0)</td><td>0%</td></tr>';
 
       let rincianPelunasanHTML = '';
       mExp.filter(e => e.type === 'bayar_hutang').forEach(e => {
           const pct = omzet > 0 ? ((e.amount / omzet) * 100).toFixed(1) : 0;
-          rincianPelunasanHTML += `<tr><td style="padding-left: 20px;">- Pelunasan: ${e.supplier}</td><td>(${formatRp(e.amount)})</td><td>${pct}%</td></tr>`;
+          let tgl = new Date(e.date).toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' });
+          rincianPelunasanHTML += `<tr><td style="padding-left: 20px;">[${tgl}] ${e.note} (${e.supplier})</td><td>(${formatRp(e.amount)})</td><td>${pct}%</td></tr>`;
       });
       if(rincianPelunasanHTML === '') rincianPelunasanHTML = '<tr><td style="padding-left: 20px; color:#999;">- Tidak ada pelunasan hutang</td><td>(Rp 0)</td><td>0%</td></tr>';
 
@@ -2456,7 +2484,7 @@
             </table>
           </div>
           <div class="page"><h2>2. Laporan Laba Rugi Sederhana</h2><table><tr><th>Keterangan</th><th>Jumlah (Rp)</th><th>% Omzet</th></tr><tr><td><b>Omzet Penjualan</b></td><td><b>${formatRp(omzet)}</b></td><td><b>100%</b></td></tr><tr><td colspan="3" class="row-title">Total Biaya Operasional / Kas Keluar:</td></tr>${rincianKasKeluarHTML}<tr><td colspan="3" class="row-title">Pelunasan Hutang:</td></tr>${rincianPelunasanHTML}<tr style="background:#efebe9; border-top:2px solid #d7ccc8;"><td><b>TOTAL BIAYA KESELURUHAN</b></td><td><b>(${formatRp(totalBiaya)})</b></td><td><b>${rasioBiaya}%</b></td></tr><tr><td><b>LABA BERSIH</b></td><td><b>${formatRp(labaBersih)}</b></td><td><b>${marginLaba}%</b></td></tr></table>
-            <h2>3. Posisi Hutang Supplier Tertunda</h2><table><tr><th>Supplier</th><th>Keterangan</th><th>Jatuh Tempo</th><th>Sisa Hutang (Rp)</th></tr>${activeHutangHTML}<tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr></table><p style="font-size:10px; color:#5d4037;">*Catatan: Hutang ini adalah kewajiban yang harus dibayarkan bulan depan. Pastikan kas fisik mencukupi untuk pelunasan.</p>
+            <h2>3. Posisi Hutang Supplier Tertunda</h2><table><tr><th>Tanggal</th><th>Supplier</th><th>Item / Keterangan</th><th>Sisa Hutang (Rp)</th></tr>${activeHutangHTML}<tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr></table><p style="font-size:10px; color:#5d4037;">*Catatan: Rincian ini adalah sisa kewajiban aktif yang belum terlunasi hingga saat ini.</p>
           </div>
           <div class="page"><h2>4. Analisa Keseluruhan</h2><div class="analisa-box">${analisaText}</div>
             <h2>5. Pembagian Hasil (Laba Bersih)</h2><p style="font-size:11px;">Dihitung penuh dari Laba Bersih: <b>${formatRp(labaBersih)}</b></p>
