@@ -1275,22 +1275,7 @@
       }
     }
 
-    async function cloudSyncBills() {
-      if (!db || !appId) return;
-      const fm = window.firebaseModules;
-      try {
-        const billsRef = fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills');
-        const snap = await fm.getDocs(billsRef);
-        const batchDeletions = [];
-        snap.forEach(d => batchDeletions.push(fm.deleteDoc(d.ref)));
-        await Promise.all(batchDeletions);
-        for (const bill of activeBills) {
-          await fm.addDoc(billsRef, bill);
-        }
-      } catch (err) {
-        console.error('Bills sync failed:', err);
-      }
-    }
+    
 
     function formatRp(val) {
       return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
@@ -1890,9 +1875,25 @@
       const { sum } = calculateCartTotal();
       if (sum === 0) return;
       const newBill = { id: currentBillId || 'BILL-' + Date.now(), type: orderType, table: orderTable, cartData: { ...cart }, total: sum, date: new Date().toISOString() };
-      const idx = activeBills.findIndex(b => b.id === newBill.id);
-      if (idx >= 0) activeBills[idx] = newBill; else activeBills.push(newBill);
-      await cloudSyncBills();
+      
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          const existingBill = activeBills.find(b => b.id === newBill.id);
+          if (existingBill && existingBill.firestoreId) {
+            // Update HANYA meja yang bersangkutan secara spesifik
+            const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', existingBill.firestoreId);
+            await fm.setDoc(docRef, newBill);
+          } else {
+            // Simpan sebagai meja baru
+            await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills'), newBill);
+          }
+        } catch (err) { console.error('Simpan meja err:', err); }
+      } else {
+        const idx = activeBills.findIndex(b => b.id === newBill.id);
+        if (idx >= 0) activeBills[idx] = newBill; else activeBills.push(newBill);
+      }
+      
       closeModalCheckout(); resetCartAndSession(); updateBadgeMeja(); switchTab('meja');
     }
 
@@ -1918,9 +1919,20 @@
       await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
 
+      // Hapus HANYA meja yang sudah dilunasi pembayarannya
       if (currentBillId) {
-        activeBills = activeBills.filter(b => b.id !== currentBillId);
-        await cloudSyncBills();
+        if (db && appId) {
+          const fm = window.firebaseModules;
+          try {
+            const existingBill = activeBills.find(b => b.id === currentBillId);
+            if (existingBill && existingBill.firestoreId) {
+              const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', existingBill.firestoreId);
+              await fm.deleteDoc(docRef);
+            }
+          } catch (err) { console.error('Hapus meja err:', err); }
+        } else {
+          activeBills = activeBills.filter(b => b.id !== currentBillId);
+        }
       }
 
       closeModalCheckout(); resetCartAndSession(); updateBadgeMeja(); showSuccessReceipt(tx);
