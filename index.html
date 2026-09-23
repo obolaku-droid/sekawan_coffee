@@ -502,6 +502,35 @@
       cursor: pointer;
     }
     .lap-pill.active { background: #ffffff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+    <!-- Omzet Utama & Trend Growth -->
+            <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
+              
+              <!-- Grafik Gelombang (Animasi Smooth & Aktif) -->
+              <div class="animated-graph-bg">
+                <!-- SVG Vector untuk Grafik Halus -->
+                <svg viewBox="0 0 2400 120" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
+                  <!-- Area Transparan di Bawah Grafik -->
+                  <path fill="rgba(255,255,255,0.15)" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60 L 2400 120 L 0 120 Z"></path>
+                  <!-- Garis Putih Grafik yang Halus (Smooth Curve) -->
+                  <path fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="4" stroke-linecap="round" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60"></path>
+                </svg>
+              </div>
+
+              <!-- Konten Teks Card (z-index 2 agar tampil di atas grafik) -->
+              <div style="position:relative; z-index:2;">
+                <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
+                <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
+                  <div id="lap-omzet" style="font-size:24px; font-weight:800;">Rp 0</div>
+                  <div id="lap-trend" style="font-size:11px; padding:3px 8px; border-radius:20px; font-weight:bold; background:rgba(255,255,255,0.2); backdrop-filter:blur(2px);">➖ 0%</div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:11px; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">
+                  <div>Laba Bersih:<br><strong id="lap-laba" style="font-size:14px;">Rp 0</strong></div>
+                  <div>Trx Berhasil:<br><strong id="lap-count" style="font-size:14px;">0</strong></div>
+                </div>
+              </div>
+            </div>
+    
   </style>
 </head>
 <body>
@@ -732,7 +761,16 @@
             <div style="display:flex; gap:6px; margin-bottom:8px; background:#f1f5f9; padding:3px; border-radius:8px;">
               <button class="lap-pill active" onclick="setLapPeriod('harian')">Harian</button>
               <button class="lap-pill" onclick="setLapPeriod('mingguan')">Mingguan</button>
-              <button class="lap-pill" onclick="setLapPeriod('bulanan')">Bulanan</button>
+              <button class="lap-pill" onclick="setLapPeriod('bulanan')">Bulan Ini</button>
+              <button class="lap-pill" onclick="setLapPeriod('custom')">Custom 📅</button>
+            </div>
+            
+            <!-- Filter Tanggal Custom (Awalnya Sembunyi) -->
+            <div id="custom-date-filter" style="display:none; gap:6px; margin-bottom:10px;">
+              <input type="date" id="date-start" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
+              <span style="font-size:10px; padding-top:8px;">s/d</span>
+              <input type="date" id="date-end" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
+              <button onclick="renderReports()" style="background:var(--primary); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:10px; font-weight:bold;">Cek</button>
             </div>
 
             <!-- Omset Utama & Trend Growth -->
@@ -2180,7 +2218,15 @@
       currentLapPeriod = p;
       document.querySelectorAll('.lap-pill').forEach(el => el.classList.remove('active'));
       event.target.classList.add('active');
-      renderReports();
+      
+      if(p === 'custom') {
+        // Tampilkan kotak kalender saat tombol Custom diklik, tapi jangan langsung render
+        document.getElementById('custom-date-filter').style.display = 'flex';
+      } else {
+        // Sembunyikan kotak kalender jika kembali ke Harian/Mingguan/Bulanan
+        document.getElementById('custom-date-filter').style.display = 'none';
+        renderReports();
+      }
     }
 
     function isSameDay(d1, d2) { return d1.toDateString() === d2.toDateString(); }
@@ -2190,73 +2236,81 @@
     function renderReports() {
       const now = new Date();
       let prev = new Date();
-
-      // Penentuan Waktu "Sekarang" vs "Masa Lalu"
       let isCurr = (d) => false;
       let isPrev = (d) => false;
 
       if (currentLapPeriod === 'harian') {
         prev.setDate(now.getDate() - 1);
         isCurr = (d) => isSameDay(d, now);
-        isPrev = (d) => isSameDay(d, prev); // Bandingkan dgn Kemarin
+        isPrev = (d) => isSameDay(d, prev);
         document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Hari Ini)";
       } else if (currentLapPeriod === 'mingguan') {
         prev.setDate(now.getDate() - 7);
         isCurr = (d) => (now - d) / (1000 * 60 * 60 * 24) <= 7 && d <= now;
-        isPrev = (d) => { const diff = (now - d) / (1000 * 60 * 60 * 24); return diff > 7 && diff <= 14; }; // Bandingkan dgn 7 hari sebelumnya
+        isPrev = (d) => { const diff = (now - d) / (1000 * 60 * 60 * 24); return diff > 7 && diff <= 14; };
         document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (7 Hari Terakhir)";
       } else if (currentLapPeriod === 'bulanan') {
         prev.setMonth(now.getMonth() - 1);
         isCurr = (d) => isSameMonth(d, now);
-        isPrev = (d) => isSameMonth(d, prev); // Bandingkan dgn Bulan Lalu
+        isPrev = (d) => isSameMonth(d, prev);
         document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Bulan Ini)";
+      } else if (currentLapPeriod === 'custom') {
+        // Logika Pintar untuk Tanggal Custom
+        const startVal = document.getElementById('date-start').value;
+        const endVal = document.getElementById('date-end').value;
+        if (!startVal || !endVal) { notify('Pilih tanggal awal & akhir dulu!'); return; }
+        
+        const startDate = new Date(startVal); startDate.setHours(0,0,0,0);
+        const endDate = new Date(endVal); endDate.setHours(23,59,59,999);
+        
+        isCurr = (d) => d >= startDate && d <= endDate;
+        isPrev = (d) => false; // Mode custom tidak menghitung persentase tren naik/turun
+        
+        document.getElementById('lap-title-omzet').textContent = `Periode: ${startDate.toLocaleDateString('id-ID')} - ${endDate.toLocaleDateString('id-ID')}`;
       }
 
-      // Filter Transaksi Sekarang dan Masa Lalu
+      // Saring Data Berdasarkan Tanggal Terpilih
       const currTx = transactions.filter(t => isCurr(new Date(t.date)));
       const prevTx = transactions.filter(t => isPrev(new Date(t.date)));
 
       const currOmzet = currTx.reduce((acc, t) => acc + t.total, 0);
       const prevOmzet = prevTx.reduce((acc, t) => acc + t.total, 0);
 
-      // Kalkulasi Tren (Panah Naik/Turun)
+      // Label Pertumbuhan
       let trendHTML = '';
-      if (prevOmzet === 0 && currOmzet > 0) {
-         trendHTML = `<span style="color:#a7f3d0;">▲ Naik 100%</span>`; // Warna hijau terang
-      } else if (prevOmzet === 0 && currOmzet === 0) {
-         trendHTML = `<span style="color:#e2e8f0;">➖ 0%</span>`;
+      if (currentLapPeriod === 'custom') {
+          trendHTML = `<span style="color:#e2e8f0;">🔍 Mode Custom</span>`;
       } else {
-         const diffPct = ((currOmzet - prevOmzet) / prevOmzet) * 100;
-         if (diffPct > 0) trendHTML = `<span style="color:#a7f3d0;">▲ Naik ${diffPct.toFixed(1)}%</span>`;
-         else if (diffPct < 0) trendHTML = `<span style="color:#fca5a5;">▼ Turun ${Math.abs(diffPct).toFixed(1)}%</span>`; // Warna merah terang
-         else trendHTML = `<span style="color:#e2e8f0;">➖ Stabil 0%</span>`;
+          if (prevOmzet === 0 && currOmzet > 0) trendHTML = `<span style="color:#a7f3d0;">▲ Naik 100%</span>`;
+          else if (prevOmzet === 0 && currOmzet === 0) trendHTML = `<span style="color:#e2e8f0;">➖ 0%</span>`;
+          else {
+             const diffPct = ((currOmzet - prevOmzet) / prevOmzet) * 100;
+             if (diffPct > 0) trendHTML = `<span style="color:#a7f3d0;">▲ Naik ${diffPct.toFixed(1)}%</span>`;
+             else if (diffPct < 0) trendHTML = `<span style="color:#fca5a5;">▼ Turun ${Math.abs(diffPct).toFixed(1)}%</span>`;
+             else trendHTML = `<span style="color:#e2e8f0;">➖ Stabil 0%</span>`;
+          }
       }
       document.getElementById('lap-trend').innerHTML = trendHTML;
 
-      // Pengeluaran Saat Ini
+      // Pengeluaran & Hutang
       const currExp = expenses.filter(e => isCurr(new Date(e.date)));
       const currKas = currExp.filter(e => e.type === 'kas' || e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
       const currHutang = currExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0) - currExp.filter(e => e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
 
-      // Analitik ERP Details
+      // Detail ERP
       const sumTunai = currTx.filter(t => t.paymentMethod === 'tunai').reduce((acc, t) => acc + t.total, 0);
       const sumQris = currTx.filter(t => t.paymentMethod === 'nontunai').reduce((acc, t) => acc + t.total, 0);
-      
-      const aov = currTx.length > 0 ? (currOmzet / currTx.length) : 0; // Rata-rata per transaksi
+      const aov = currTx.length > 0 ? (currOmzet / currTx.length) : 0;
       const takeawayCount = currTx.filter(t => t.orderType === 'takeaway').length;
       const takeawayPct = currTx.length > 0 ? ((takeawayCount / currTx.length) * 100).toFixed(0) : 0;
 
-      // Pencarian Top 3 Menu
+      // Top 3 Menu
       const itemCounts = {};
-      currTx.forEach(t => {
-        t.items.forEach(i => {
-          itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty;
-        });
-      });
+      currTx.forEach(t => { t.items.forEach(i => { itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty; }); });
       const topItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
       let topMenuHTML = topItems.length === 0 ? '- Belum ada penjualan' : topItems.map((item, idx) => `<div><strong>${idx+1}.</strong> ${item[0]} (${item[1]}x)</div>`).join('');
 
-      // Update Tampilan DOM Layar
+      // Render Layar
       document.getElementById('lap-omzet').textContent = formatRp(currOmzet);
       document.getElementById('lap-count').textContent = currTx.length;
       document.getElementById('lap-laba').textContent = formatRp(currOmzet - currKas);
@@ -2268,7 +2322,7 @@
       document.getElementById('lap-takeaway').textContent = takeawayPct + '%';
       document.getElementById('lap-top-menu').innerHTML = topMenuHTML;
 
-      // Kalkulasi Pembagian Laba
+      // Render Bagi Hasil
       document.getElementById('profit-sharing-list').innerHTML = PROFIT_SHARING_MEMBERS.map(m => `
         <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
     }
