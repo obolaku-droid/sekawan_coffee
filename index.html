@@ -57,7 +57,7 @@
       color: var(--text);
       display: flex;
       justify-content: center;
-      align-items: flex-start; /* Berubah dari center ke flex-start agar tidak terpotong */
+      align-items: flex-start;
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -67,9 +67,9 @@
       width: 100vw;
       max-width: 420px;
       height: 100%; 
-      height: 100dvh; /* Menggunakan tinggi layar dinamis HP */
+      height: 100dvh;
       max-height: 850px;
-      padding-top: env(safe-area-inset-top); /* Mengamankan area status bar / poni iPhone */
+      padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       background-color: var(--surface);
       display: flex;
@@ -84,7 +84,7 @@
       .app-frame {
         border-radius: 28px;
         height: 90vh;
-        margin-top: 5vh; /* Menjaga aplikasi tetap di tengah saat dibuka di PC/Laptop */
+        margin-top: 5vh;
       }
     }
 
@@ -503,34 +503,21 @@
     }
     .lap-pill.active { background: #ffffff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 
-    <!-- Omzet Utama & Trend Growth -->
-            <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-              
-              <!-- Grafik Gelombang (Animasi Smooth & Aktif) -->
-              <div class="animated-graph-bg">
-                <!-- SVG Vector untuk Grafik Halus -->
-                <svg viewBox="0 0 2400 120" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
-                  <!-- Area Transparan di Bawah Grafik -->
-                  <path fill="rgba(255,255,255,0.15)" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60 L 2400 120 L 0 120 Z"></path>
-                  <!-- Garis Putih Grafik yang Halus (Smooth Curve) -->
-                  <path fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="4" stroke-linecap="round" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60"></path>
-                </svg>
-              </div>
-
-              <!-- Konten Teks Card (z-index 2 agar tampil di atas grafik) -->
-              <div style="position:relative; z-index:2;">
-                <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
-                <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
-                  <div id="lap-omzet" style="font-size:24px; font-weight:800;">Rp 0</div>
-                  <div id="lap-trend" style="font-size:11px; padding:3px 8px; border-radius:20px; font-weight:bold; background:rgba(255,255,255,0.2); backdrop-filter:blur(2px);">➖ 0%</div>
-                </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:11px; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">
-                  <div>Laba Bersih:<br><strong id="lap-laba" style="font-size:14px;">Rp 0</strong></div>
-                  <div>Trx Berhasil:<br><strong id="lap-count" style="font-size:14px;">0</strong></div>
-                </div>
-              </div>
-            </div>
-    
+    /* Efek Grafik Gelombang Halus Bergerak */
+    @keyframes smoothGraphFlow {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .animated-graph-bg {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 200%;
+      height: 70px;
+      z-index: 0;
+      pointer-events: none;
+      animation: smoothGraphFlow 5s linear infinite;
+    }
   </style>
 </head>
 <body>
@@ -773,16 +760,28 @@
               <button onclick="renderReports()" style="background:var(--primary); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:10px; font-weight:bold;">Cek</button>
             </div>
 
-            <!-- Omset Utama & Trend Growth -->
-            <div style="background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-              <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
-              <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
-                <div id="lap-omzet" style="font-size:24px; font-weight:800;">Rp 0</div>
-                <div id="lap-trend" style="font-size:11px; padding:3px 8px; border-radius:20px; font-weight:bold; background:rgba(255,255,255,0.2);">➖ 0%</div>
+            <!-- Omzet Utama & Trend Growth -->
+            <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
+              
+              <!-- Grafik Gelombang (Animasi Smooth & Aktif) -->
+              <div class="animated-graph-bg">
+                <svg viewBox="0 0 2400 120" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
+                  <path fill="rgba(255,255,255,0.15)" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60 L 2400 120 L 0 120 Z"></path>
+                  <path fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="4" stroke-linecap="round" d="M 0 60 C 150 110, 450 10, 600 60 C 750 110, 1050 10, 1200 60 C 1350 110, 1650 10, 1800 60 C 1950 110, 2250 10, 2400 60"></path>
+                </svg>
               </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:11px; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">
-                <div>Laba Bersih:<br><strong id="lap-laba" style="font-size:14px;">Rp 0</strong></div>
-                <div>Trx Berhasil:<br><strong id="lap-count" style="font-size:14px;">0</strong></div>
+
+              <!-- Konten Teks Card (z-index 2 agar tampil di atas grafik) -->
+              <div style="position:relative; z-index:2;">
+                <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
+                <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
+                  <div id="lap-omzet" style="font-size:24px; font-weight:800;">Rp 0</div>
+                  <div id="lap-trend" style="font-size:11px; padding:3px 8px; border-radius:20px; font-weight:bold; background:rgba(255,255,255,0.2); backdrop-filter:blur(2px);">➖ 0%</div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:11px; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">
+                  <div>Laba Bersih:<br><strong id="lap-laba" style="font-size:14px;">Rp 0</strong></div>
+                  <div>Trx Berhasil:<br><strong id="lap-count" style="font-size:14px;">0</strong></div>
+                </div>
               </div>
             </div>
 
@@ -1405,10 +1404,10 @@
 
     function startShift() {
       const cashierInput = document.getElementById('shift-cashier-name').value.trim();
-      const cashier = cashierInput || 'Polem'; // Default otomatis ke Polem jika kosong
+      const cashier = cashierInput || 'Polem';
       
       const cashInput = document.getElementById('shift-initial-cash').value;
-      const initialCash = cashInput ? parseNumeric(cashInput) : 500000; // Default otomatis 500.000 jika kosong
+      const initialCash = cashInput ? parseNumeric(cashInput) : 500000;
 
       currentShift = { cashier, startTime: new Date().toISOString(), initialCash };
       localStorage.setItem('moka_active_shift', JSON.stringify(currentShift));
@@ -1456,50 +1455,29 @@
       if (!currentShift) return;
       const endTime = new Date();
       const startTime = new Date(currentShift.startTime);
-
-      // Fungsi format jam jadi HH:MM
       const formatTime = (d) => d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-      // Filter data sesuai waktu shift berjalan
       const shiftTx = transactions.filter(t => new Date(t.date) >= startTime);
       const shiftExp = expenses.filter(e => (e.type === 'kas' || e.type === 'bayar_hutang') && new Date(e.date) >= startTime);
 
-      // Kalkulasi Uang & Transaksi
       const modalAwal = currentShift.initialCash || 0;
-      
       const txTunai = shiftTx.filter(t => t.paymentMethod === 'tunai');
       const sumTunai = txTunai.reduce((acc, t) => acc + t.total, 0);
-
       const txQris = shiftTx.filter(t => t.paymentMethod === 'nontunai');
       const sumQris = txQris.reduce((acc, t) => acc + t.total, 0);
-
       const sumKasKeluar = shiftExp.reduce((acc, e) => acc + e.amount, 0);
       const totalOmzet = sumTunai + sumQris;
       const totalTx = shiftTx.length;
-
-      // Rumus Kas di Laci: Modal Awal + Penjualan Tunai - Kas Keluar
       const fisikLaci = modalAwal + sumTunai - sumKasKeluar;
 
-      // Buat list rincian Kas Keluar
-      let rincianKasKeluar = shiftExp.map(e => {
-        return `• ${formatTime(new Date(e.date))}: ${e.note} (-${formatRp(e.amount)})`;
-      }).join('\n');
+      let rincianKasKeluar = shiftExp.map(e => `• ${formatTime(new Date(e.date))}: ${e.note} (-${formatRp(e.amount)})`).join('\n');
       if (!rincianKasKeluar) rincianKasKeluar = '• Tidak ada pengeluaran';
 
-      // Buat list rincian Menu Terjual
       const itemCounts = {};
-      shiftTx.forEach(t => {
-        t.items.forEach(i => {
-          itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty;
-        });
-      });
-      let rincianMenu = Object.entries(itemCounts)
-        .sort((a, b) => b[1] - a[1]) // Urutkan dari yang paling banyak terjual
-        .map(([name, qty]) => `• ${name}: ${qty} porsi`)
-        .join('\n');
+      shiftTx.forEach(t => { t.items.forEach(i => { itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty; }); });
+      let rincianMenu = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).map(([name, qty]) => `• ${name}: ${qty} porsi`).join('\n');
       if (!rincianMenu) rincianMenu = '• Belum ada menu terjual';
 
-      // Susun Template Pesan WhatsApp
       let msg = `📊 *REKAP PENUTUPAN SHIFT (Z-REPORT)*\n` +
                 `☕️ *${storeConfig.name.toUpperCase()}*\n` +
                 `👤 Kasir: ${currentShift.cashier}\n` +
@@ -1519,27 +1497,9 @@
                 `📦 *Rincian Menu Terjual:*\n${rincianMenu}\n` +
                 `========================`;
 
-      // Buka link WhatsApp
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    async function restoreFullCatalog() {
-      localStorage.setItem('moka_p', JSON.stringify(INITIAL_PRODUCTS));
-      localStorage.setItem('moka_categories', JSON.stringify(INITIAL_CATEGORIES));
-      categories = [...INITIAL_CATEGORIES];
-      products = [...INITIAL_PRODUCTS];
-      
-      if (db && appId) {
-        const fm = window.firebaseModules;
-        try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { categories, products }, { merge: true }); } 
-        catch (err) { console.error('Sync restore err:', err); }
-      }
-      
-      renderCategoriesBar();
-      renderProducts();
-      notify('Katalog menu dipulihkan & disinkronkan ke Cloud!');
-    }
-    
     function confirmCloseShift() {
       currentShift = null;
       localStorage.removeItem('moka_active_shift');
@@ -1710,7 +1670,24 @@
         closeModalAddTable(); renderMeja(); notify('Meja disinkronkan ke Cloud');
       }
     }
-    
+
+    async function restoreFullCatalog() {
+      localStorage.setItem('moka_p', JSON.stringify(INITIAL_PRODUCTS));
+      localStorage.setItem('moka_categories', JSON.stringify(INITIAL_CATEGORIES));
+      categories = [...INITIAL_CATEGORIES];
+      products = [...INITIAL_PRODUCTS];
+      
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { categories, products }, { merge: true }); } 
+        catch (err) { console.error('Sync restore err:', err); }
+      }
+      
+      renderCategoriesBar();
+      renderProducts();
+      notify('Katalog menu dipulihkan & disinkronkan ke Cloud!');
+    }
+
     function renderCategoriesBar() {
       let html = `<button class="cat-pill ${activeCategory === 'semua' ? 'active' : ''}" onclick="setCategory('semua', this)">Semua</button>`;
       categories.forEach(c => html += `<button class="cat-pill ${activeCategory === c.id ? 'active' : ''}" onclick="setCategory('${c.id}', this)">${c.name}</button>`);
@@ -1738,6 +1715,7 @@
       document.getElementById('modal-variant').classList.add('show');
     }
     function closeModalVariant() { document.getElementById('modal-variant').classList.remove('show'); renderProducts(); }
+    
     function renderVariantList() {
       if (!currentVariantProduct) return;
       document.getElementById('variant-list').innerHTML = currentVariantProduct.variants.map(v => {
@@ -1867,7 +1845,6 @@
       }).join('');
       document.getElementById('checkout-bill-total').textContent = formatRp(sum);
       
-      // Default otomatis pilih Tunai & Uang Pas saat modal dibuka
       selectPaymentMethod('tunai');
       document.getElementById('cash-given-input').value = sum.toLocaleString('id-ID');
       calcChange();
@@ -1878,30 +1855,17 @@
 
     function selectPaymentMethod(method) {
       document.getElementById('payment-method-hidden').value = method;
-      
       const btnTunai = document.getElementById('btn-method-tunai');
       const btnNontunai = document.getElementById('btn-method-nontunai');
       const tunaiFields = document.getElementById('tunai-fields-container');
 
       if (method === 'tunai') {
-        btnTunai.style.background = 'var(--primary-light)';
-        btnTunai.style.color = 'var(--primary)';
-        btnTunai.style.border = '2px solid var(--primary)';
-        
-        btnNontunai.style.background = '#f8fafc';
-        btnNontunai.style.color = 'var(--text-muted)';
-        btnNontunai.style.border = '1px solid var(--border)';
-        
+        btnTunai.style.background = 'var(--primary-light)'; btnTunai.style.color = 'var(--primary)'; btnTunai.style.border = '2px solid var(--primary)';
+        btnNontunai.style.background = '#f8fafc'; btnNontunai.style.color = 'var(--text-muted)'; btnNontunai.style.border = '1px solid var(--border)';
         tunaiFields.style.display = 'block';
       } else {
-        btnNontunai.style.background = 'var(--primary-light)';
-        btnNontunai.style.color = 'var(--primary)';
-        btnNontunai.style.border = '2px solid var(--primary)';
-        
-        btnTunai.style.background = '#f8fafc';
-        btnTunai.style.color = 'var(--text-muted)';
-        btnTunai.style.border = '1px solid var(--border)';
-        
+        btnNontunai.style.background = 'var(--primary-light)'; btnNontunai.style.color = 'var(--primary)'; btnNontunai.style.border = '2px solid var(--primary)';
+        btnTunai.style.background = '#f8fafc'; btnTunai.style.color = 'var(--text-muted)'; btnTunai.style.border = '1px solid var(--border)';
         tunaiFields.style.display = 'none';
       }
     }
@@ -1909,16 +1873,13 @@
     function setQuickCash(amount) {
       const { sum } = calculateCartTotal();
       const cashInput = document.getElementById('cash-given-input');
-      
-      if (amount === 'pas') {
-        cashInput.value = sum.toLocaleString('id-ID');
-      } else {
-        cashInput.value = amount.toLocaleString('id-ID');
-      }
-      calcChange(); // Update kembalian otomatis
+      if (amount === 'pas') cashInput.value = sum.toLocaleString('id-ID');
+      else cashInput.value = amount.toLocaleString('id-ID');
+      calcChange();
     }
 
     function closeModalCheckout() { document.getElementById('modal-checkout').classList.remove('show'); }
+    
     function calcChange() {
       const { sum } = calculateCartTotal();
       const cash = parseNumeric(document.getElementById('cash-given-input').value);
@@ -1985,6 +1946,7 @@
       document.getElementById('receipt-items-container').innerHTML = tx.items.map(i => `<div style="display:flex; justify-content:space-between;"><span>${i.name} x${i.qty}</span><span>${formatRp(i.price * i.qty)}</span></div>`).join('');
       document.getElementById('modal-success').classList.add('show');
     }
+    
     function closeModalSuccess() { document.getElementById('modal-success').classList.remove('show'); switchTab('kasir'); }
 
     function shareReceiptWA(txId) {
@@ -1994,29 +1956,14 @@
       let phone = prompt("Masukkan nomor WhatsApp pelanggan\n(Contoh: 08123456789):", "");
       if (!phone) return;
 
-      if (phone.startsWith('0')) {
-        phone = '62' + phone.substring(1);
-      } else if (phone.startsWith('+62')) {
-        phone = phone.substring(1);
-      }
+      if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+      else if (phone.startsWith('+62')) phone = phone.substring(1);
 
-      let msg = `*STRUK PEMBELIAN*\n`;
-      msg += `☕️ *${storeConfig.name.toUpperCase()}*\n`;
-      msg += `No: ${tx.id}\n`;
-      msg += `Waktu: ${new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}\n`;
-      msg += `Tipe: ${tx.orderType === 'dine_in' ? 'Dine In (Meja ' + tx.table + ')' : 'Takeaway'}\n`;
-      msg += `========================\n`;
-      
-      tx.items.forEach(i => {
-        msg += `${i.name}\n${i.qty} x ${formatRp(i.price)} = ${formatRp(i.qty * i.price)}\n`;
-      });
-      
-      msg += `------------------------\n`;
-      msg += `*Total   : ${formatRp(tx.total)}*\n`;
-      msg += `Bayar   : ${formatRp(tx.cash || tx.total)} (${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'})\n`;
+      let msg = `*STRUK PEMBELIAN*\n☕️ *${storeConfig.name.toUpperCase()}*\nNo: ${tx.id}\nWaktu: ${new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}\nTipe: ${tx.orderType === 'dine_in' ? 'Dine In (Meja ' + tx.table + ')' : 'Takeaway'}\n========================\n`;
+      tx.items.forEach(i => { msg += `${i.name}\n${i.qty} x ${formatRp(i.price)} = ${formatRp(i.qty * i.price)}\n`; });
+      msg += `------------------------\n*Total   : ${formatRp(tx.total)}*\nBayar   : ${formatRp(tx.cash || tx.total)} (${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'})\n`;
       if(tx.change > 0) msg += `Kembali : ${formatRp(tx.change)}\n`;
-      msg += `========================\n`;
-      msg += `Terima kasih atas kunjungannya! 🙏`;
+      msg += `========================\nTerima kasih atas kunjungannya! 🙏`;
 
       window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
     }
@@ -2028,51 +1975,25 @@
       const printWindow = window.open('', '_blank', 'width=400,height=600');
       let itemsHTML = '';
       tx.items.forEach(i => {
-        itemsHTML += `
-          <div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
-            <div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div>
-            <div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div>
-          </div>`;
+        itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
       });
 
       const html = `
-        <html>
-        <head>
-          <title>Struk - ${tx.id}</title>
-          <style>
-            @page { margin: 0; }
-            body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; }
-            .center { text-align: center; }
-            .bold { font-weight: bold; }
-            .dashed-line { border-top: 1px dashed #000; margin: 5px 0; }
-            .flex-between { display: flex; justify-content: space-between; }
-          </style>
-        </head>
+        <html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; } .flex-between { display: flex; justify-content: space-between; }</style></head>
         <body>
           <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${storeConfig.name.toUpperCase()}</div>
           <div class="center" style="font-size: 10px; margin-bottom: 5px;">${tx.orderType === 'dine_in' ? 'Dine In - Meja ' + tx.table : 'Takeaway'}</div>
           <div class="dashed-line"></div>
-          <div style="font-size: 10px;">
-            <div>No   : ${tx.id}</div>
-            <div>Tgl  : ${new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</div>
-            <div>Bayar: ${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'}</div>
-          </div>
-          <div class="dashed-line"></div>
-          ${itemsHTML}
-          <div class="dashed-line"></div>
+          <div style="font-size: 10px;"><div>No   : ${tx.id}</div><div>Tgl  : ${new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</div><div>Bayar: ${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'}</div></div>
+          <div class="dashed-line"></div>${itemsHTML}<div class="dashed-line"></div>
           <div class="flex-between bold"><span>Total</span><span>Rp ${tx.total.toLocaleString('id-ID')}</span></div>
           <div class="flex-between" style="font-size:10px;"><span>Tunai</span><span>Rp ${(tx.cash || tx.total).toLocaleString('id-ID')}</span></div>
           <div class="flex-between" style="font-size:10px;"><span>Kembali</span><span>Rp ${(tx.change || 0).toLocaleString('id-ID')}</span></div>
-          <div class="dashed-line"></div>
-          <div class="center" style="font-size: 10px; margin-top: 5px;">Terima Kasih<br>Silakan Datang Kembali</div>
-          <script>
-            window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };
-          <\\/script>
-        </body>
-        </html>
+          <div class="dashed-line"></div><div class="center" style="font-size: 10px; margin-top: 5px;">Terima Kasih<br>Silakan Datang Kembali</div>
+          <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };<\\/script>
+        </body></html>
       `;
-      printWindow.document.write(html);
-      printWindow.document.close();
+      printWindow.document.write(html); printWindow.document.close();
     }
 
     function renderHistory() {
@@ -2092,6 +2013,7 @@
       document.getElementById('modal-expense').classList.add('show');
     }
     function closeModalExpense() { document.getElementById('modal-expense').classList.remove('show'); }
+    
     function toggleSupplierInput() {
       const type = document.getElementById('exp-type').value;
       const group = document.getElementById('supplier-input-group');
@@ -2101,42 +2023,22 @@
       const nominalInput = document.getElementById('exp-nominal');
 
       if (type === 'kas') {
-        group.style.display = 'none';
-        inputSup.style.display = 'block';
-        dropHutang.style.display = 'none';
+        group.style.display = 'none'; inputSup.style.display = 'block'; dropHutang.style.display = 'none';
       } else if (type === 'hutang') {
-        group.style.display = 'block';
-        inputSup.style.display = 'block'; // Tampilkan input ketik manual
-        dropHutang.style.display = 'none';
-        inputSup.value = '';
-        noteInput.value = '';
-        nominalInput.value = '';
+        group.style.display = 'block'; inputSup.style.display = 'block'; dropHutang.style.display = 'none';
+        inputSup.value = ''; noteInput.value = ''; nominalInput.value = '';
       } else if (type === 'bayar_hutang') {
-        group.style.display = 'block';
-        inputSup.style.display = 'none'; // Sembunyikan input ketik manual
-        dropHutang.style.display = 'block'; // Tampilkan pilihan hutang otomatis
-        
-        // Kalkulasi sisa hutang per supplier dari riwayat
+        group.style.display = 'block'; inputSup.style.display = 'none'; dropHutang.style.display = 'block';
         let supplierBalances = {};
         expenses.forEach(e => {
-            if(e.type === 'hutang') {
-                supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
-            } else if (e.type === 'bayar_hutang') {
-                supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount;
-            }
+            if(e.type === 'hutang') supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
+            else if (e.type === 'bayar_hutang') supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount;
         });
-
-        // Masukkan data sisa hutang ke dalam dropdown pilihan
         let options = '<option value="">-- Pilih Hutang yang Mau Dilunasi --</option>';
         for(const [sup, bal] of Object.entries(supplierBalances)) {
-            if(bal > 0) {
-                options += `<option value="${sup}" data-balance="${bal}">${sup} (Sisa: ${formatRp(bal)})</option>`;
-            }
+            if(bal > 0) options += `<option value="${sup}" data-balance="${bal}">${sup} (Sisa: ${formatRp(bal)})</option>`;
         }
-        if(options === '<option value="">-- Pilih Hutang yang Mau Dilunasi --</option>') {
-            options = '<option value="">-- Tidak ada hutang aktif --</option>';
-        }
-        
+        if(options === '<option value="">-- Pilih Hutang yang Mau Dilunasi --</option>') options = '<option value="">-- Tidak ada hutang aktif --</option>';
         dropHutang.innerHTML = options;
         noteInput.value = 'Pelunasan Hutang';
         nominalInput.value = '';
@@ -2146,12 +2048,9 @@
     function autofillPelunasan() {
         const drop = document.getElementById('exp-hutang-dropdown');
         const selected = drop.options[drop.selectedIndex];
-        
         if(selected && selected.value) {
             const bal = selected.getAttribute('data-balance');
-            // Isi diam-diam input nama supplier agar bisa disimpan oleh fungsi saveExpense
             document.getElementById('exp-supplier').value = selected.value; 
-            // Isi otomatis nominal dengan sisa hutang
             document.getElementById('exp-nominal').value = Number(bal).toLocaleString('id-ID'); 
         } else {
             document.getElementById('exp-supplier').value = '';
@@ -2173,36 +2072,21 @@
       let kas = 0; let hutang = 0;
       let supplierBalances = {};
 
-      // 1. Hitung total kas, hutang, dan sisa saldo per supplier
       expenses.forEach(e => {
         if (e.type === 'kas') kas += e.amount;
-        if (e.type === 'hutang') {
-            hutang += e.amount;
-            supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
-        }
-        if (e.type === 'bayar_hutang') {
-            kas += e.amount;
-            hutang -= e.amount;
-            supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount;
-        }
+        if (e.type === 'hutang') { hutang += e.amount; supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount; }
+        if (e.type === 'bayar_hutang') { kas += e.amount; hutang -= e.amount; supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) - e.amount; }
       });
 
-      // Update angka di kotak merah (Kas Keluar) dan kuning (Hutang Supplier)
       document.getElementById('total-kas-display').textContent = formatRp(kas);
       document.getElementById('total-hutang-display').textContent = formatRp(hutang);
 
-      // 2. Filter Tampilan Daftar: Sembunyikan Hutang yang sudah lunas (saldo <= 0)
       const visibleExpenses = expenses.filter(e => {
-        // Riwayat Kas Operasional dan Pelunasan selalu ditampilkan agar arus uang laci jelas
         if (e.type === 'kas' || e.type === 'bayar_hutang') return true;
-        
-        // Untuk riwayat Hutang lama, HANYA tampilkan jika supplier tersebut masih menunggak
         if (e.type === 'hutang') return supplierBalances[e.supplier] > 0;
-        
         return true;
       });
 
-      // 3. Render ke layar
       document.getElementById('expense-container').innerHTML = visibleExpenses.map(e => {
         let color = e.type === 'hutang' ? 'var(--warning)' : (e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)');
         let label = e.type === 'kas' ? e.note : (e.type === 'bayar_hutang' ? `Pelunasan: ${e.supplier}` : `Hutang: ${e.supplier}`);
@@ -2220,10 +2104,8 @@
       event.target.classList.add('active');
       
       if(p === 'custom') {
-        // Tampilkan kotak kalender saat tombol Custom diklik, tapi jangan langsung render
         document.getElementById('custom-date-filter').style.display = 'flex';
       } else {
-        // Sembunyikan kotak kalender jika kembali ke Harian/Mingguan/Bulanan
         document.getElementById('custom-date-filter').style.display = 'none';
         renderReports();
       }
@@ -2255,7 +2137,6 @@
         isPrev = (d) => isSameMonth(d, prev);
         document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Bulan Ini)";
       } else if (currentLapPeriod === 'custom') {
-        // Logika Pintar untuk Tanggal Custom
         const startVal = document.getElementById('date-start').value;
         const endVal = document.getElementById('date-end').value;
         if (!startVal || !endVal) { notify('Pilih tanggal awal & akhir dulu!'); return; }
@@ -2264,19 +2145,17 @@
         const endDate = new Date(endVal); endDate.setHours(23,59,59,999);
         
         isCurr = (d) => d >= startDate && d <= endDate;
-        isPrev = (d) => false; // Mode custom tidak menghitung persentase tren naik/turun
+        isPrev = (d) => false; 
         
         document.getElementById('lap-title-omzet').textContent = `Periode: ${startDate.toLocaleDateString('id-ID')} - ${endDate.toLocaleDateString('id-ID')}`;
       }
 
-      // Saring Data Berdasarkan Tanggal Terpilih
       const currTx = transactions.filter(t => isCurr(new Date(t.date)));
       const prevTx = transactions.filter(t => isPrev(new Date(t.date)));
 
       const currOmzet = currTx.reduce((acc, t) => acc + t.total, 0);
       const prevOmzet = prevTx.reduce((acc, t) => acc + t.total, 0);
 
-      // Label Pertumbuhan
       let trendHTML = '';
       if (currentLapPeriod === 'custom') {
           trendHTML = `<span style="color:#e2e8f0;">🔍 Mode Custom</span>`;
@@ -2292,25 +2171,21 @@
       }
       document.getElementById('lap-trend').innerHTML = trendHTML;
 
-      // Pengeluaran & Hutang
       const currExp = expenses.filter(e => isCurr(new Date(e.date)));
       const currKas = currExp.filter(e => e.type === 'kas' || e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
       const currHutang = currExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0) - currExp.filter(e => e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
 
-      // Detail ERP
       const sumTunai = currTx.filter(t => t.paymentMethod === 'tunai').reduce((acc, t) => acc + t.total, 0);
       const sumQris = currTx.filter(t => t.paymentMethod === 'nontunai').reduce((acc, t) => acc + t.total, 0);
       const aov = currTx.length > 0 ? (currOmzet / currTx.length) : 0;
       const takeawayCount = currTx.filter(t => t.orderType === 'takeaway').length;
       const takeawayPct = currTx.length > 0 ? ((takeawayCount / currTx.length) * 100).toFixed(0) : 0;
 
-      // Top 3 Menu
       const itemCounts = {};
       currTx.forEach(t => { t.items.forEach(i => { itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty; }); });
       const topItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
       let topMenuHTML = topItems.length === 0 ? '- Belum ada penjualan' : topItems.map((item, idx) => `<div><strong>${idx+1}.</strong> ${item[0]} (${item[1]}x)</div>`).join('');
 
-      // Render Layar
       document.getElementById('lap-omzet').textContent = formatRp(currOmzet);
       document.getElementById('lap-count').textContent = currTx.length;
       document.getElementById('lap-laba').textContent = formatRp(currOmzet - currKas);
@@ -2322,13 +2197,11 @@
       document.getElementById('lap-takeaway').textContent = takeawayPct + '%';
       document.getElementById('lap-top-menu').innerHTML = topMenuHTML;
 
-      // Render Bagi Hasil
       document.getElementById('profit-sharing-list').innerHTML = PROFIT_SHARING_MEMBERS.map(m => `
         <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
     }
 
     function shareWhatsAppReport() {
-      // Mengambil data yang sedang tampil di layar Dasbor Owner
       const title = document.getElementById('lap-title-omzet').textContent;
       const omzet = document.getElementById('lap-omzet').textContent;
       const laba = document.getElementById('lap-laba').textContent;
@@ -2338,37 +2211,21 @@
       const kas = document.getElementById('lap-kas').textContent;
       const hutang = document.getElementById('lap-hutang').textContent;
 
-      // Merakit pesan teks untuk WhatsApp
-      let msg = `📊 *LAPORAN CLOUD OWNER*\n`;
-      msg += `🏪 *${storeConfig.name.toUpperCase()}*\n`;
-      msg += `📅 ${title}\n`;
-      msg += `========================\n`;
-      msg += `📈 *Omzet Total :* ${omzet} (${count} Trx)\n`;
-      msg += `💵 Tunai       : ${tunai}\n`;
-      msg += `📱 QRIS/TF     : ${qris}\n`;
-      msg += `------------------------\n`;
-      msg += `📉 *Pengeluaran:*\n`;
-      msg += `💸 Kas Keluar  : ${kas}\n`;
-      msg += `📝 Sisa Hutang : ${hutang}\n`;
-      msg += `========================\n`;
-      msg += `💰 *LABA BERSIH : ${laba}*\n`;
-      msg += `========================\n`;
-      msg += `_Dicetak otomatis dari Sistem Cloud POS_`;
+      let msg = `📊 *LAPORAN CLOUD OWNER*\n🏪 *${storeConfig.name.toUpperCase()}*\n📅 ${title}\n========================\n`;
+      msg += `📈 *Omzet Total :* ${omzet} (${count} Trx)\n💵 Tunai       : ${tunai}\n📱 QRIS/TF     : ${qris}\n------------------------\n`;
+      msg += `📉 *Pengeluaran:*\n💸 Kas Keluar  : ${kas}\n📝 Sisa Hutang : ${hutang}\n========================\n`;
+      msg += `💰 *LABA BERSIH : ${laba}*\n========================\n_Dicetak otomatis dari Sistem Cloud POS_`;
 
-      // Membuka tab WhatsApp dengan pesan yang sudah dirakit
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
-    
-    
+
     function downloadMonthlyReportPDF() {
       const printWindow = window.open('', '_blank');
       const now = new Date();
       
-      // Mengambil data bulan ini
       const mTx = transactions.filter(t => isSameMonth(new Date(t.date), now));
       const mExp = expenses.filter(e => isSameMonth(new Date(e.date), now));
       
-      // Kalkulasi Utama
       const omzet = mTx.reduce((acc, t) => acc + t.total, 0);
       const totalPorsi = mTx.reduce((acc, t) => acc + t.items.reduce((sum, i) => sum + i.qty, 0), 0);
       
@@ -2376,7 +2233,6 @@
       const hutangBulanIni = mExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0);
       const pelunasanBulanIni = mExp.filter(e => e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
       
-      // MENGGABUNGKAN Kas Keluar Operasional & Pelunasan Hutang sebagai Total Biaya
       const totalBiaya = biayaOperasional + pelunasanBulanIni;
       const labaBersih = omzet - totalBiaya;
       const sisaHutang = hutangBulanIni - pelunasanBulanIni;
@@ -2384,7 +2240,6 @@
       const marginLaba = omzet > 0 ? ((labaBersih / omzet) * 100).toFixed(1) : 0;
       const rasioBiaya = omzet > 0 ? ((totalBiaya / omzet) * 100).toFixed(1) : 0;
 
-      // Kalkulasi Produk
       const itemStats = {};
       mTx.forEach(t => {
         t.items.forEach(i => {
@@ -2395,7 +2250,6 @@
       });
       const topItems = Object.entries(itemStats).sort((a,b) => b[1].omzet - a[1].omzet);
 
-      // Daftar Hutang Tersisa
       let supplierBalances = {};
       mExp.forEach(e => {
         if(e.type === 'hutang') supplierBalances[e.supplier] = (supplierBalances[e.supplier] || 0) + e.amount;
@@ -2403,11 +2257,10 @@
       });
       let activeHutangHTML = '';
       for(const [sup, bal] of Object.entries(supplierBalances)) {
-          if(bal > 0) activeHutangHTML += '<tr><td>' + sup + '</td><td>Bahan Baku</td><td>-</td><td>' + formatRp(bal) + '</td></tr>';
+          if(bal > 0) activeHutangHTML += `<tr><td>${sup}</td><td>Bahan Baku</td><td>-</td><td>${formatRp(bal)}</td></tr>`;
       }
       if(activeHutangHTML === '') activeHutangHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada hutang aktif</td></tr>';
 
-      // Rincian Pengeluaran untuk Tabel Laba Rugi
       let rincianKasKeluarHTML = '';
       mExp.filter(e => e.type === 'kas').forEach(e => {
           const pct = omzet > 0 ? ((e.amount / omzet) * 100).toFixed(1) : 0;
@@ -2422,222 +2275,67 @@
       });
       if(rincianPelunasanHTML === '') rincianPelunasanHTML = '<tr><td style="padding-left: 20px; color:#999;">- Tidak ada pelunasan hutang</td><td>(Rp 0)</td><td>0%</td></tr>';
 
-      // Analisa Keseluruhan Dinamis
       let analisaText = '';
       if (omzet > 0) {
-        analisaText += 'Kinerja keuangan bulan ini mencatatkan omzet sebesar <b>' + formatRp(omzet) + '</b> dengan laba bersih <b>' + formatRp(labaBersih) + '</b> (Margin: ' + marginLaba + '%). ';
-        if (rasioBiaya > 40) {
-          analisaText += 'Rasio biaya operasional mencapai ' + rasioBiaya + '%, disarankan untuk mengevaluasi pengeluaran agar lebih efisien. ';
-        } else {
-          analisaText += 'Rasio biaya operasional terjaga di angka ' + rasioBiaya + '%, menunjukkan efisiensi yang baik. ';
-        }
-        if (sisaHutang > 0) {
-          analisaText += 'Terdapat sisa hutang supplier sebesar <b>' + formatRp(sisaHutang) + '</b> yang perlu diprioritaskan pelunasannya bulan depan.';
-        } else {
-          analisaText += 'Tidak ada tunggakan hutang supplier (lunas), kondisi arus kas sangat sehat.';
-        }
+        analisaText += `Kinerja keuangan bulan ini mencatatkan omzet sebesar <b>${formatRp(omzet)}</b> dengan laba bersih <b>${formatRp(labaBersih)}</b> (Margin: ${marginLaba}%). `;
+        if (rasioBiaya > 40) analisaText += `Rasio biaya operasional mencapai ${rasioBiaya}%, disarankan untuk mengevaluasi pengeluaran agar lebih efisien. `;
+        else analisaText += `Rasio biaya operasional terjaga di angka ${rasioBiaya}%, menunjukkan efisiensi yang baik. `;
+        if (sisaHutang > 0) analisaText += `Terdapat sisa hutang supplier sebesar <b>${formatRp(sisaHutang)}</b> yang perlu diprioritaskan pelunasannya bulan depan.`;
+        else analisaText += `Tidak ada tunggakan hutang supplier (lunas), kondisi arus kas sangat sehat.`;
       } else {
         analisaText = 'Belum ada data transaksi yang memadai untuk dianalisa pada bulan ini.';
       }
 
-      // Template HTML
       printWindow.document.write(`
-        <html>
-        <head>
-          <title>Laporan Keuangan Bulanan - ${storeConfig.name}</title>
-          <style>
-            @page { size: A4; margin: 15mm; }
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; background: #fdfcf8; font-size: 12px; margin: 0; }
-            .page { page-break-after: always; padding: 20px; }
-            .header { border-bottom: 3px solid #3e2723; padding-bottom: 10px; margin-bottom: 20px; }
-            .header h1 { color: #3e2723; margin: 0; font-size: 24px; text-transform: uppercase; }
-            .header p { margin: 5px 0 0 0; color: #5d4037; font-size: 12px; }
-            
-            .summary-cards { display: flex; gap: 10px; margin-bottom: 20px; }
-            .card { flex: 1; background: white; border: 1px solid #d7ccc8; padding: 15px; border-radius: 8px; border-top: 4px solid #3e2723; }
-            .card-title { font-size: 10px; font-weight: bold; color: #795548; text-transform: uppercase; margin-bottom: 5px; }
-            .card-value { font-size: 18px; font-weight: bold; color: #3e2723; }
-            .card-sub { font-size: 10px; color: #8d6e63; margin-top: 5px; }
-            
-            h2 { font-size: 16px; color: #3e2723; border-bottom: 1px solid #d7ccc8; padding-bottom: 5px; margin-top: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: white; }
-            th, td { border: 1px solid #d7ccc8; padding: 8px 10px; text-align: left; }
-            th { background: #efebe9; color: #3e2723; font-weight: bold; font-size: 11px; }
-            td { font-size: 11px; }
-            
-            .bar-container { width: 100%; background: #efebe9; border-radius: 4px; height: 12px; margin-top: 4px; overflow: hidden; }
-            .bar-fill { height: 100%; background: #8d6e63; }
-            .bar-fill.dark { background: #3e2723; }
-            
-            .signature-area { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
-            .sign-box { width: 22%; border-top: 1px solid #333; padding-top: 5px; font-size: 11px; }
-            
-            .analisa-box { background: white; border: 1px solid #d7ccc8; padding: 15px; border-radius: 8px; font-size: 11px; line-height: 1.5; margin-bottom: 20px; }
-            .catatan-box { border: 1px dashed #d7ccc8; height: 100px; border-radius: 8px; margin-bottom: 20px; background: #fafafa; }
-            .row-title { background: #fdfcf8; font-weight: bold; color: #795548; font-size: 10px; text-transform: uppercase; }
-          </style>
-        </head>
-        <body>
-          
-          <div class="page">
-            <div class="header">
-              <h1>LAPORAN KEUANGAN BULANAN</h1>
-              <p><b>${storeConfig.name}</b> | Periode: ${now.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}</p>
-            </div>
-            
-            <div class="summary-cards">
-              <div class="card">
-                <div class="card-title">OMZET</div>
-                <div class="card-value">${formatRp(omzet)}</div>
-                <div class="card-sub">${totalPorsi} porsi terjual</div>
-              </div>
-              <div class="card">
-                <div class="card-title">TOTAL BIAYA</div>
-                <div class="card-value">${formatRp(totalBiaya)}</div>
-                <div class="card-sub">${rasioBiaya}% dari omzet</div>
-              </div>
-              <div class="card">
-                <div class="card-title">LABA BERSIH</div>
-                <div class="card-value">${formatRp(labaBersih)}</div>
-                <div class="card-sub">Margin ${marginLaba}%</div>
-              </div>
-              <div class="card" style="border-top-color: #d84315;">
-                <div class="card-title">HUTANG SUPPLIER</div>
-                <div class="card-value" style="color: #d84315;">${formatRp(sisaHutang)}</div>
-                <div class="card-sub">Belum lunas akhir bulan</div>
-              </div>
-            </div>
-
-            <h2>1. Laporan Penjualan per Produk</h2>
-            <table>
-              <tr><th>Produk</th><th>Harga (Rp)</th><th>Terjual</th><th>Omzet (Rp)</th><th>% Omzet</th></tr>
-              ${topItems.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Belum ada data penjualan</td></tr>' : 
-                topItems.map((item, idx) => {
-                  const pct = omzet > 0 ? ((item[1].omzet / omzet) * 100).toFixed(1) : 0;
-                  const darkClass = idx === 0 ? 'dark' : '';
-                  return '<tr>' +
-                    '<td>' + item[0] + '</td>' +
-                    '<td>' + formatRp(item[1].price) + '</td>' +
-                    '<td>' + item[1].qty + '</td>' +
-                    '<td>' + formatRp(item[1].omzet) + '</td>' +
-                    '<td>' + pct + '% <div class="bar-container"><div class="bar-fill ' + darkClass + '" style="width:' + pct + '%"></div></div></td>' +
-                  '</tr>';
-                }).join('')}
+        <html><head><title>Laporan Keuangan Bulanan - ${storeConfig.name}</title><style>
+            @page { size: A4; margin: 15mm; } body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; background: #fdfcf8; font-size: 12px; margin: 0; } .page { page-break-after: always; padding: 20px; } .header { border-bottom: 3px solid #3e2723; padding-bottom: 10px; margin-bottom: 20px; } .header h1 { color: #3e2723; margin: 0; font-size: 24px; text-transform: uppercase; } .header p { margin: 5px 0 0 0; color: #5d4037; font-size: 12px; } .summary-cards { display: flex; gap: 10px; margin-bottom: 20px; } .card { flex: 1; background: white; border: 1px solid #d7ccc8; padding: 15px; border-radius: 8px; border-top: 4px solid #3e2723; } .card-title { font-size: 10px; font-weight: bold; color: #795548; text-transform: uppercase; margin-bottom: 5px; } .card-value { font-size: 18px; font-weight: bold; color: #3e2723; } .card-sub { font-size: 10px; color: #8d6e63; margin-top: 5px; } h2 { font-size: 16px; color: #3e2723; border-bottom: 1px solid #d7ccc8; padding-bottom: 5px; margin-top: 20px; } table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: white; } th, td { border: 1px solid #d7ccc8; padding: 8px 10px; text-align: left; } th { background: #efebe9; color: #3e2723; font-weight: bold; font-size: 11px; } td { font-size: 11px; } .bar-container { width: 100%; background: #efebe9; border-radius: 4px; height: 12px; margin-top: 4px; overflow: hidden; } .bar-fill { height: 100%; background: #8d6e63; } .bar-fill.dark { background: #3e2723; } .signature-area { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; } .sign-box { width: 22%; border-top: 1px solid #333; padding-top: 5px; font-size: 11px; } .analisa-box { background: white; border: 1px solid #d7ccc8; padding: 15px; border-radius: 8px; font-size: 11px; line-height: 1.5; margin-bottom: 20px; } .catatan-box { border: 1px dashed #d7ccc8; height: 100px; border-radius: 8px; margin-bottom: 20px; background: #fafafa; } .row-title { background: #fdfcf8; font-weight: bold; color: #795548; font-size: 10px; text-transform: uppercase; }
+        </style></head><body>
+          <div class="page"><div class="header"><h1>LAPORAN KEUANGAN BULANAN</h1><p><b>${storeConfig.name}</b> | Periode: ${now.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}</p></div>
+            <div class="summary-cards"><div class="card"><div class="card-title">OMZET</div><div class="card-value">${formatRp(omzet)}</div><div class="card-sub">${totalPorsi} porsi terjual</div></div><div class="card"><div class="card-title">TOTAL BIAYA</div><div class="card-value">${formatRp(totalBiaya)}</div><div class="card-sub">${rasioBiaya}% dari omzet</div></div><div class="card"><div class="card-title">LABA BERSIH</div><div class="card-value">${formatRp(labaBersih)}</div><div class="card-sub">Margin ${marginLaba}%</div></div><div class="card" style="border-top-color: #d84315;"><div class="card-title">HUTANG SUPPLIER</div><div class="card-value" style="color: #d84315;">${formatRp(sisaHutang)}</div><div class="card-sub">Belum lunas akhir bulan</div></div></div>
+            <h2>1. Laporan Penjualan per Produk</h2><table><tr><th>Produk</th><th>Harga (Rp)</th><th>Terjual</th><th>Omzet (Rp)</th><th>% Omzet</th></tr>
+              ${topItems.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Belum ada data penjualan</td></tr>' : topItems.map((item, idx) => { const pct = omzet > 0 ? ((item[1].omzet / omzet) * 100).toFixed(1) : 0; const darkClass = idx === 0 ? 'dark' : ''; return `<tr><td>${item[0]}</td><td>${formatRp(item[1].price)}</td><td>${item[1].qty}</td><td>${formatRp(item[1].omzet)}</td><td>${pct}% <div class="bar-container"><div class="bar-fill ${darkClass}" style="width:${pct}%"></div></div></td></tr>`; }).join('')}
             </table>
           </div>
-
-          <div class="page">
-            <h2>2. Laporan Laba Rugi Sederhana</h2>
-            <table>
-              <tr><th>Keterangan</th><th>Jumlah (Rp)</th><th>% Omzet</th></tr>
-              <tr><td><b>Omzet Penjualan</b></td><td><b>${formatRp(omzet)}</b></td><td><b>100%</b></td></tr>
-              
-              <tr><td colspan="3" class="row-title">Total Biaya Operasional / Kas Keluar:</td></tr>
-              ${rincianKasKeluarHTML}
-              
-              <tr><td colspan="3" class="row-title">Pelunasan Hutang:</td></tr>
-              ${rincianPelunasanHTML}
-              
-              <tr style="background:#efebe9; border-top:2px solid #d7ccc8;">
-                <td><b>TOTAL BIAYA KESELURUHAN</b></td>
-                <td><b>(${formatRp(totalBiaya)})</b></td>
-                <td><b>${rasioBiaya}%</b></td>
-              </tr>
-              <tr><td><b>LABA BERSIH</b></td><td><b>${formatRp(labaBersih)}</b></td><td><b>${marginLaba}%</b></td></tr>
-            </table>
-
-            <h2>3. Posisi Hutang Supplier Tertunda</h2>
-            <table>
-              <tr><th>Supplier</th><th>Keterangan</th><th>Jatuh Tempo</th><th>Sisa Hutang (Rp)</th></tr>
-              ${activeHutangHTML}
-              <tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr>
-            </table>
-            <p style="font-size:10px; color:#5d4037;">*Catatan: Hutang ini adalah kewajiban yang harus dibayarkan bulan depan. Pastikan kas fisik mencukupi untuk pelunasan.</p>
+          <div class="page"><h2>2. Laporan Laba Rugi Sederhana</h2><table><tr><th>Keterangan</th><th>Jumlah (Rp)</th><th>% Omzet</th></tr><tr><td><b>Omzet Penjualan</b></td><td><b>${formatRp(omzet)}</b></td><td><b>100%</b></td></tr><tr><td colspan="3" class="row-title">Total Biaya Operasional / Kas Keluar:</td></tr>${rincianKasKeluarHTML}<tr><td colspan="3" class="row-title">Pelunasan Hutang:</td></tr>${rincianPelunasanHTML}<tr style="background:#efebe9; border-top:2px solid #d7ccc8;"><td><b>TOTAL BIAYA KESELURUHAN</b></td><td><b>(${formatRp(totalBiaya)})</b></td><td><b>${rasioBiaya}%</b></td></tr><tr><td><b>LABA BERSIH</b></td><td><b>${formatRp(labaBersih)}</b></td><td><b>${marginLaba}%</b></td></tr></table>
+            <h2>3. Posisi Hutang Supplier Tertunda</h2><table><tr><th>Supplier</th><th>Keterangan</th><th>Jatuh Tempo</th><th>Sisa Hutang (Rp)</th></tr>${activeHutangHTML}<tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr></table><p style="font-size:10px; color:#5d4037;">*Catatan: Hutang ini adalah kewajiban yang harus dibayarkan bulan depan. Pastikan kas fisik mencukupi untuk pelunasan.</p>
           </div>
-
-          <div class="page">
-            <h2>4. Analisa Keseluruhan</h2>
-            <div class="analisa-box">
-              ${analisaText}
-            </div>
-
-            <h2>5. Pembagian Hasil (Laba Bersih)</h2>
-            <p style="font-size:11px;">Dihitung penuh dari Laba Bersih: <b>${formatRp(labaBersih)}</b></p>
-            <table>
-              <tr><th>Pihak</th><th>Porsi</th><th>Diterima (Rp)</th></tr>
-              <tr><td>Hamzah</td><td>40%</td><td>${formatRp(labaBersih * 0.40)}</td></tr>
-              <tr><td>Ridha Fadli</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
-              <tr><td>Velayani</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
-              <tr><td>Maulana</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
-              <tr><td>Ikram</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr>
-              <tr style="background:#efebe9; font-weight:bold;">
-                <td colspan="2">Total Laba Dibagikan</td>
-                <td>${formatRp(labaBersih)}</td>
-              </tr>
-            </table>
-
-            <h2>6. Catatan & Keputusan Bersama</h2>
-            <div class="catatan-box"></div>
-
+          <div class="page"><h2>4. Analisa Keseluruhan</h2><div class="analisa-box">${analisaText}</div>
+            <h2>5. Pembagian Hasil (Laba Bersih)</h2><p style="font-size:11px;">Dihitung penuh dari Laba Bersih: <b>${formatRp(labaBersih)}</b></p>
+            <table><tr><th>Pihak</th><th>Porsi</th><th>Diterima (Rp)</th></tr><tr><td>Hamzah</td><td>40%</td><td>${formatRp(labaBersih * 0.40)}</td></tr><tr><td>Ridha Fadli</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr><td>Velayani</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr><td>Maulana</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr><td>Ikram</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr style="background:#efebe9; font-weight:bold;"><td colspan="2">Total Laba Dibagikan</td><td>${formatRp(labaBersih)}</td></tr></table>
+            <h2>6. Catatan & Keputusan Bersama</h2><div class="catatan-box"></div>
             <p style="font-size:11px; font-weight:bold; margin-top:30px; margin-bottom: 20px;">Disetujui oleh:</p>
-            <div class="signature-area">
-              <div class="sign-box">Ridha Fadli</div>
-              <div class="sign-box">Maulana</div>
-              <div class="sign-box">Velayani</div>
-              <div class="sign-box">Muhammad Ikram</div>
-            </div>
-            
+            <div class="signature-area"><div class="sign-box">Ridha Fadli</div><div class="sign-box">Maulana</div><div class="sign-box">Velayani</div><div class="sign-box">Muhammad Ikram</div></div>
             <p style="text-align:center; font-size:10px; color:#999; margin-top:40px;">Dokumen ini dicetak otomatis dari Sistem Cloud POS Sekawan Coffee.</p>
           </div>
-
-          ${'<' + 'script>'}
-            window.onload = function() { window.print(); };
-          ${'<' + '/script>'}
-        </body>
-        </html>
+          <script>window.onload = function() { window.print(); };<\/script>
+        </body></html>
       `);
       printWindow.document.close();
     }
     
     function exportCompleteCSV() {
-      let csvContent = "\uFEFF";
-      csvContent += "=== TRANSAKSI PENJUALAN ===\n";
-      csvContent += "ID Transaksi,Tanggal,Tipe Pesanan,Meja,Metode Pembayaran,Total,Tunai,Kembalian,Daftar Item\n";
+      let csvContent = "\uFEFF=== TRANSAKSI PENJUALAN ===\nID Transaksi,Tanggal,Tipe Pesanan,Meja,Metode Pembayaran,Total,Tunai,Kembalian,Daftar Item\n";
       transactions.forEach(t => {
         const itemsStr = t.items.map(i => `${i.name} (x${i.qty} @${i.price})`).join('; ');
         csvContent += `"${t.id}","${t.date}","${t.orderType || 'takeaway'}","${t.table || '-'}","${t.paymentMethod || 'tunai'}","${t.total}","${t.cash}","${t.change}","${itemsStr}"\n`;
       });
-      csvContent += "\n=== KAS KELUAR & HUTANG SUPPLIER ===\n";
-      csvContent += "Tipe,Supplier,Keterangan,Nominal,Tanggal\n";
-      expenses.forEach(e => {
-        csvContent += `"${e.type}","${e.supplier || '-'}","${e.note}","${e.amount}","${e.date}"\n`;
-      });
+      csvContent += "\n=== KAS KELUAR & HUTANG SUPPLIER ===\nTipe,Supplier,Keterangan,Nominal,Tanggal\n";
+      expenses.forEach(e => { csvContent += `"${e.type}","${e.supplier || '-'}","${e.note}","${e.amount}","${e.date}"\n`; });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `sekawan_coffee_backup_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      link.setAttribute("href", url); link.setAttribute("download", `sekawan_coffee_backup_${Date.now()}.csv`);
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
       notify('Backup CSV diunduh');
     }
 
-    function importCompleteCSV(e) {
-      notify('Fitur import aktif');
-    }
+    function importCompleteCSV(e) { notify('Fitur import aktif'); }
 
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('drawer-overlay').classList.remove('show');
       document.getElementById('drawer-menu').classList.remove('show');
-
-      applyStoreConfig();
-      renderCategoriesBar();
-      renderProducts();
-      updateCartDisplay();
-      updateBadgeMeja();
-
+      applyStoreConfig(); renderCategoriesBar(); renderProducts(); updateCartDisplay(); updateBadgeMeja();
       initFirebaseSync();
     });
   </script>
