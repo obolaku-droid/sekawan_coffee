@@ -1997,7 +1997,10 @@
         });
 
         const activeDebts = [];
-        expenses.filter(e => e.type === 'hutang').forEach(e => {
+        // PERBAIKAN: Hitung sisa hutang dari tanggal nota yang PALING TUA ke yang TERBARU
+        const hutangList = expenses.filter(e => e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        hutangList.forEach(e => {
           const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
           let paid = debtPayments[key] || 0;
           
@@ -2009,6 +2012,9 @@
           const sisa = e.amount - paid;
           if (sisa > 0) activeDebts.push({ key, supplier: e.supplier, note: e.note, sisa, date: e.date });
         });
+
+        // Balikkan urutan agar di dropdown nota terbaru ada di posisi atas
+        activeDebts.reverse();
 
         let options = '<option value="">-- Pilih Nota Hutang --</option>';
         activeDebts.forEach(d => {
@@ -2076,9 +2082,11 @@
         }
       });
 
-      // 2. Hitung sisa tiap hutang spesifik
+      // 2. Hitung sisa tiap hutang spesifik secara Kronologis (Tua ke Baru)
       let debtBalances = {};
-      expenses.filter(e => e.type === 'hutang').forEach(e => {
+      const hutangList = expenses.filter(e => e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      hutangList.forEach(e => {
         const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
         let paid = debtPayments[key] || 0;
         
@@ -2095,69 +2103,82 @@
       document.getElementById('total-kas-display').textContent = formatRp(kas);
       document.getElementById('total-hutang-display').textContent = formatRp(hutang);
 
-      // --- PEMBAGIAN KELOMPOK TAMPILAN AGAR RAPI ---
-
-      // Kelompok A: Hutang Aktif (Selalu tampil di atas jika belum lunas)
-      const activeDebts = expenses.filter(e => {
+      // --- PEMBAGIAN 3 KELOMPOK (Urut Terbaru ke Terlama) ---
+      
+      // A. Kelompok Hutang Belum Lunas
+      let listHutang = expenses.filter(e => {
         if (e.type === 'hutang') {
           const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
           return debtBalances[key] > 0;
         }
         return false;
-      });
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      // Kelompok B: Riwayat Kas & Pelunasan (Dibatasi maksimal 30 data terbaru agar tidak memanjang)
-      const recentHistory = expenses.filter(e => e.type === 'kas' || e.type === 'bayar_hutang').slice(0, 30);
+      // B. Kelompok Pelunasan Hutang
+      let listPelunasan = expenses.filter(e => e.type === 'bayar_hutang')
+                                  .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      // C. Kelompok Kas Keluar (Operasional)
+      let listKas = expenses.filter(e => e.type === 'kas')
+                            .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      // Fungsi Pembantu untuk Merender Kotak Rincian Transaksi
+      const renderItemBox = (e, isHutang) => {
+        let valDisplay = formatRp(e.amount);
+        if (isHutang) {
+           const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
+           valDisplay = formatRp(debtBalances[key]);
+        }
+        
+        let color = e.type === 'hutang' ? 'var(--warning)' : (e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)');
+        let label = e.type === 'kas' ? e.note : (e.type === 'bayar_hutang' ? e.note : `${e.supplier} - ${e.note}`);
+        let badge = e.type === 'kas' ? 'Operasional' : (e.type === 'bayar_hutang' ? `Pelunasan ke: ${e.supplier}` : 'Hutang Belum Lunas');
+        
+        let d = new Date(e.date);
+        let tgl = isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WIB';
+
+        return `
+        <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; font-size:11px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+          <div style="flex:1; padding-right:8px;">
+            <div style="font-size:9px; color:var(--primary); font-weight:800; margin-bottom:4px;">📅 ${tgl}</div>
+            <strong style="color:#0f172a; line-height:1.4; display:block;">${label}</strong>
+            <span style="font-size:9px; color:var(--text-muted);">${badge}</span>
+          </div>
+          <strong style="color:${color}; white-space:nowrap; font-size:13px;">${valDisplay}</strong>
+        </div>`;
+      };
 
       let html = '';
 
-      // Tampilkan Kelompok A (Hutang)
-      if (activeDebts.length > 0) {
-        html += `<div style="font-size:10px; font-weight:800; color:var(--warning); margin:10px 0 6px 0; text-transform:uppercase;">⚠️ Hutang Belum Lunas</div>`;
-        html += activeDebts.map(e => {
-            const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
-            const valDisplay = formatRp(debtBalances[key]);
-            let d = new Date(e.date);
-            let tgl = isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WIB';
+      // Tampilan Akordeon 1: Hutang Belum Lunas (Secara bawaan/default saya buat selalu terbuka)
+      html += `
+      <div onclick="document.getElementById('grp-hutang').classList.toggle('hidden')" style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+        <strong style="color:#d97706; font-size:11px;">⚠️ HUTANG BELUM LUNAS (${listHutang.length})</strong>
+        <span style="color:#d97706; font-size:10px; font-weight:bold;">▼ Buka/Tutup</span>
+      </div>
+      <div id="grp-hutang" style="margin-bottom:12px; padding:0 4px;">
+        ${listHutang.length > 0 ? listHutang.map(e => renderItemBox(e, true)).join('') : '<div style="text-align:center; font-size:10px; color:#94a3b8; padding:10px;">Tidak ada hutang aktif</div>'}
+      </div>`;
 
-            return `
-            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-              <div style="flex:1; padding-right:8px;">
-                <div style="font-size:9px; color:#d97706; font-weight:800; margin-bottom:4px;">📅 ${tgl}</div>
-                <strong style="color:#92400e; line-height:1.4; display:block;">${e.supplier} - ${e.note}</strong>
-                <span style="font-size:9px; color:#b45309;">Hutang Belum Lunas</span>
-              </div>
-              <strong style="color:var(--warning); white-space:nowrap; font-size:13px;">${valDisplay}</strong>
-            </div>`;
-        }).join('');
-      }
+      // Tampilan Akordeon 2: Riwayat Pelunasan (Bawaan Tertutup)
+      html += `
+      <div onclick="document.getElementById('grp-lunas').classList.toggle('hidden')" style="background:#dcfce7; border:1px solid #bbf7d0; border-radius:10px; padding:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+        <strong style="color:#166534; font-size:11px;">✅ RIWAYAT PELUNASAN (${listPelunasan.length})</strong>
+        <span style="color:#166534; font-size:10px; font-weight:bold;">▼ Buka/Tutup</span>
+      </div>
+      <div id="grp-lunas" class="hidden" style="margin-bottom:12px; padding:0 4px;">
+        ${listPelunasan.length > 0 ? listPelunasan.map(e => renderItemBox(e, false)).join('') : '<div style="text-align:center; font-size:10px; color:#94a3b8; padding:10px;">Belum ada riwayat pelunasan</div>'}
+      </div>`;
 
-      // Tampilkan Kelompok B (Riwayat Terakhir)
-      if (recentHistory.length > 0) {
-        html += `<div style="font-size:10px; font-weight:800; color:var(--text-muted); margin:14px 0 6px 0; text-transform:uppercase;">⏳ 30 Riwayat Terakhir</div>`;
-        html += recentHistory.map(e => {
-            let color = e.type === 'bayar_hutang' ? 'var(--success)' : 'var(--danger)';
-            let label = e.type === 'bayar_hutang' ? e.note : e.note;
-            let badge = e.type === 'bayar_hutang' ? `Pelunasan ke: ${e.supplier}` : 'Operasional';
-            
-            let d = new Date(e.date);
-            let tgl = isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WIB';
-
-            return `
-            <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-              <div style="flex:1; padding-right:8px;">
-                <div style="font-size:9px; color:var(--primary); font-weight:800; margin-bottom:4px;">📅 ${tgl}</div>
-                <strong style="color:#0f172a; line-height:1.4; display:block;">${label}</strong>
-                <span style="font-size:9px; color:var(--text-muted);">${badge}</span>
-              </div>
-              <strong style="color:${color}; white-space:nowrap; font-size:13px;">${formatRp(e.amount)}</strong>
-            </div>`;
-        }).join('');
-      }
-
-      if (html === '') {
-          html = `<div style="text-align:center; padding:30px 10px; font-size:11px; color:#94a3b8;">Belum ada data pengeluaran / hutang.</div>`;
-      }
+      // Tampilan Akordeon 3: Kas Keluar Operasional (Bawaan Tertutup)
+      html += `
+      <div onclick="document.getElementById('grp-kas').classList.toggle('hidden')" style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+        <strong style="color:#991b1b; font-size:11px;">💸 KAS KELUAR OPERASIONAL (${listKas.length})</strong>
+        <span style="color:#991b1b; font-size:10px; font-weight:bold;">▼ Buka/Tutup</span>
+      </div>
+      <div id="grp-kas" class="hidden" style="margin-bottom:12px; padding:0 4px;">
+        ${listKas.length > 0 ? listKas.map(e => renderItemBox(e, false)).join('') : '<div style="text-align:center; font-size:10px; color:#94a3b8; padding:10px;">Belum ada pengeluaran operasional</div>'}
+      </div>`;
 
       document.getElementById('expense-container').innerHTML = html;
     }
