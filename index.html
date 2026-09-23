@@ -745,7 +745,7 @@
 
             <!-- Omzet Utama & Trend Growth -->
             <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-              <div id="dynamic-sparkline" style="position:absolute; bottom:0; left:0; width:100%; height:60%; z-index:0; pointer-events:none; opacity:0.8;"></div>
+              
 
               <div style="position:relative; z-index:10;">
                 <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
@@ -1325,10 +1325,20 @@
 
     function startShift() {
       const cashierInput = document.getElementById('shift-cashier-name').value.trim();
-      const cashier = cashierInput || 'Polem';
-      
-      const cashInput = document.getElementById('shift-initial-cash').value;
-      const initialCash = cashInput ? parseNumeric(cashInput) : 500000;
+      const cashInput = document.getElementById('shift-initial-cash').value.trim();
+
+      // Sistem Validasi: Wajib Isi
+      if (!cashierInput) {
+        notify('Nama Kasir wajib diisi!');
+        return;
+      }
+      if (!cashInput) {
+        notify('Modal Kas Awal wajib diisi!');
+        return;
+      }
+
+      const cashier = cashierInput;
+      const initialCash = parseNumeric(cashInput);
 
       currentShift = { cashier, startTime: new Date().toISOString(), initialCash };
       localStorage.setItem('moka_active_shift', JSON.stringify(currentShift));
@@ -2347,7 +2357,7 @@
         <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
 
       // Menggambar Grafik Otomatis Secara Akurat ke Background
-      updateSparkline(currTx, currentLapPeriod);
+      
     }
 
     function shareWhatsAppReport() {
