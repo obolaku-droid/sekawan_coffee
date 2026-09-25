@@ -680,8 +680,11 @@
         </div>
 
         <div id="active-order-banner" style="background:#e0f2fe; color:#0369a1; padding:6px 12px; font-size:11px; font-weight:700; display:none; justify-content:space-between; align-items:center; border-radius:8px; margin-bottom:6px;">
-           <span id="active-order-text">Meja 1</span>
-           <button onclick="resetCartAndSession()" style="background:none; border:none; color:#ef4444; font-weight:700; font-size:10px; cursor:pointer;">Batal Sesi</button>
+           <span id="active-order-text" style="font-size:12px;">Meja 1</span>
+           <div style="display:flex; gap:10px; align-items:center;">
+             <button onclick="printPreorder()" style="background:#0284c7; border:none; color:white; padding:4px 10px; border-radius:6px; font-weight:700; font-size:10px; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.1);">🖨️ Cetak Pesanan</button>
+             <button onclick="resetCartAndSession()" style="background:none; border:none; color:#ef4444; font-weight:700; font-size:10px; cursor:pointer;">Batal Sesi</button>
+           </div>
         </div>
 
         <div class="search-box">
@@ -1996,6 +1999,51 @@
       printWindow.document.write(html); printWindow.document.close();
     }
 
+function printPreorder() {
+      const { count } = calculateCartTotal();
+      if (count === 0) {
+        notify('Belum ada pesanan yang dipilih!');
+        return;
+      }
+
+      const printWindow = window.open('', '_blank', 'width=400,height=600');
+      let itemsHTML = '';
+      
+      // Mengambil daftar barang yang ada di keranjang kasir
+      for (const [varId, qty] of Object.entries(cart)) {
+        const d = getVariantDetails(varId);
+        if (d) {
+          itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 4px; font-size:12px;"><span>- ${d.p.name}</span><strong style="font-size:14px;">x${qty}</strong></div>`;
+        }
+      }
+
+      const orderLabel = orderType === 'dine_in' ? `DINE IN (MEJA ${orderTable})` : 'TAKEAWEAY';
+      const now = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+      const cashierName = currentShift ? currentShift.cashier : '-';
+
+      const html = `
+        <html><head><title>Struk Preorder - ${orderLabel}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; } .flex-between { display: flex; justify-content: space-between; }</style></head>
+        <body>
+          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${storeConfig.name.toUpperCase()}</div>
+          <div class="center bold" style="font-size: 11px; margin-bottom: 5px; border-bottom:1px solid #000; display:inline-block; padding:0 4px;">STRUK PESANAN SEMENTARA</div>
+          
+          <div class="center bold" style="font-size: 16px; margin: 8px 0;">${orderLabel}</div>
+          
+          <div class="dashed-line"></div>
+          <div style="font-size: 10px;"><div>Tgl  : ${now}</div><div>Pramusaji: ${cashierName}</div></div>
+          <div class="dashed-line"></div>
+          
+          <div style="margin: 8px 0;">${itemsHTML}</div>
+          
+          <div class="dashed-line"></div>
+          <div class="center" style="font-size: 10px; margin-top: 5px;">* Harga Belum Ditampilkan *<br>Simpan struk ini untuk<br>proses pembayaran di kasir.</div>
+          <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };<\/script>
+        </body></html>
+      `;
+      printWindow.document.write(html); 
+      printWindow.document.close();
+    }
+    
     function renderHistory() {
       document.getElementById('trx-badge-count').textContent = `${transactions.length} Data`;
       
