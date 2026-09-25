@@ -1218,6 +1218,16 @@
           if (data.maxTableNumber) { maxTableNumber = data.maxTableNumber; localStorage.setItem('moka_max_table', maxTableNumber); if (document.getElementById('tab-meja').classList.contains('active')) renderMeja(); }
           if (data.categories) { categories = data.categories; localStorage.setItem('moka_categories', JSON.stringify(categories)); renderCategoriesBar(); }
           if (data.products) { products = data.products; localStorage.setItem('moka_p', JSON.stringify(products)); renderProducts(); }
+          
+          // --- SINKRONISASI SHIFT KASIR KE CLOUD ---
+          if (data.activeShift !== undefined) {
+            currentShift = data.activeShift;
+            if (currentShift) localStorage.setItem('moka_active_shift', JSON.stringify(currentShift));
+            else localStorage.removeItem('moka_active_shift');
+            
+            checkShiftStatus();
+            if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
+          }
         }
       }, (err) => console.debug('Config sync err:', err));
 
@@ -1376,25 +1386,26 @@
       }
     }
 
-    function startShift() {
+    async function startShift() {
       const cashierInput = document.getElementById('shift-cashier-name').value.trim();
       const cashInput = document.getElementById('shift-initial-cash').value.trim();
 
-      // Sistem Validasi: Wajib Isi
-      if (!cashierInput) {
-        notify('Nama Kasir wajib diisi!');
-        return;
-      }
-      if (!cashInput) {
-        notify('Modal Kas Awal wajib diisi!');
-        return;
-      }
+      if (!cashierInput) { notify('Nama Kasir wajib diisi!'); return; }
+      if (!cashInput) { notify('Modal Kas Awal wajib diisi!'); return; }
 
       const cashier = cashierInput;
       const initialCash = parseNumeric(cashInput);
 
       currentShift = { cashier, startTime: new Date().toISOString(), initialCash };
       localStorage.setItem('moka_active_shift', JSON.stringify(currentShift));
+      
+      // Kirim Data Buka Shift ke Cloud Firebase
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { activeShift: currentShift }, { merge: true }); } 
+        catch (err) { console.error('Sync shift err:', err); }
+      }
+
       document.getElementById('modal-open-shift').classList.remove('show');
       checkShiftStatus();
       notify('Shift dimulai: ' + cashier);
@@ -1403,35 +1414,71 @@
     function openModalCloseShift() {
       if (!currentShift) return;
       const shiftTx = transactions.filter(t => new Date(t.date) >= new Date(currentShift.startTime));
-      const shiftExp = expenses.filter(e => e.type === 'kas' && new Date(e.date) >= new Date(currentShift.startTime));
+      const shiftExp = expenses.filter(e => (e.type === 'kas' || e.type === 'bayar_hutang') && new Date(e.date) >= new Date(currentShift.startTime));
+      
       const totalOmzet = shiftTx.reduce((acc, t) => acc + t.total, 0);
       const totalKasKeluar = shiftExp.reduce((acc, e) => acc + e.amount, 0);
-      const netProfit = totalOmzet - totalKasKeluar;
+      
+      // Menghitung Ekspektasi Fisik Laci
+      const modalAwal = currentShift.initialCash || 0;
+      const sumTunai = shiftTx.filter(t => t.paymentMethod === 'tunai').reduce((acc, t) => acc + t.total, 0);
+      const fisikLaci = modalAwal + sumTunai - totalKasKeluar;
 
       const itemCounts = {};
-      const hourCounts = {};
-      shiftTx.forEach(t => {
-        t.items.forEach(i => itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty);
-        const h = new Date(t.date).getHours();
-        const hourLabel = `${String(h).padStart(2, '0')}:00 - ${String((h + 1) % 24).padStart(2, '0')}:00`;
-        hourCounts[hourLabel] = (hourCounts[hourLabel] || 0) + 1;
-      });
-
+      shiftTx.forEach(t => { t.items.forEach(i => itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty); });
       let bestSeller = '-'; let maxQty = 0;
       for (const [name, qty] of Object.entries(itemCounts)) { if (qty > maxQty) { maxQty = qty; bestSeller = `${name} (${qty}x)`; } }
 
-      let peakHour = '-'; let maxHourCount = 0;
-      for (const [hour, count] of Object.entries(hourCounts)) { if (count > maxHourCount) { maxHourCount = count; peakHour = `${hour} (${count} trx)`; } }
-
       document.getElementById('close-shift-summary').innerHTML = `
-        <div>Kasir: <strong>${currentShift.cashier}</strong></div>
-        <div>Omset: <strong style="color:var(--primary);">${formatRp(totalOmzet)}</strong></div>
-        <div>Kas Keluar: <strong style="color:var(--danger);">${formatRp(totalKasKeluar)}</strong></div>
-        <div>Laba Bersih: <strong style="color:var(--success);">${formatRp(netProfit)}</strong></div>
-        <div>Terlaris: <strong>${bestSeller}</strong></div>
-        <div>Jam Ramai: <strong>${peakHour}</strong></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Omset Shift:</span><strong style="color:var(--primary);">${formatRp(totalOmzet)}</strong></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Kas Keluar:</span><strong style="color:var(--danger);">${formatRp(totalKasKeluar)}</strong></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px dashed var(--border); padding-bottom:8px;"><span>Menu Terlaris:</span><strong>${bestSeller}</strong></div>
+        
+        <div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;">
+          <div style="font-size:10px; color:#0369a1; font-weight:800;">EKSPEKTASI UANG FISIK DI LACI:</div>
+          <div style="font-size:20px; color:#0284c7; font-weight:900; margin:2px 0;" id="expected-cash-drawer" data-val="${fisikLaci}">${formatRp(fisikLaci)}</div>
+          <div style="font-size:9px; color:#0369a1;">(Modal Awal + Penjualan Tunai - Kas Keluar)</div>
+        </div>
+
+        <div style="text-align:left;">
+          <label style="font-size:10px; font-weight:800; color:#0f172a;">JUMLAH UANG FISIK (AKTUAL) *</label>
+          <input type="text" id="actual-cash-input" placeholder="Masukkan nominal uang di laci..." oninput="formatRupiahInput(this); checkDrawerDifference();" style="width:100%; padding:10px; border-radius:8px; border:2px solid #cbd5e1; font-size:14px; font-weight:bold; margin-top:4px; text-align:right;">
+        </div>
+
+        <div id="diff-reason-container" style="display:none; text-align:left; margin-top:10px; background:#fef2f2; padding:8px; border-radius:8px; border:1px solid #fecaca;">
+          <div id="diff-amount-display" style="font-size:11px; color:var(--danger); margin-bottom:6px; font-weight:bold;"></div>
+          <label style="font-size:10px; font-weight:800; color:var(--danger);">ALASAN SELISIH *</label>
+          <input type="text" id="diff-reason-input" placeholder="Jelaskan alasan selisih uang..." style="width:100%; padding:8px; border-radius:6px; border:1px solid #fca5a5; font-size:12px; margin-top:4px;">
+        </div>
       `;
       document.getElementById('modal-close-shift').classList.add('show');
+    }
+
+    // Fungsi otomatis mendeteksi selisih uang
+    function checkDrawerDifference() {
+      const expectedNode = document.getElementById('expected-cash-drawer');
+      const actualNode = document.getElementById('actual-cash-input');
+      const reasonContainer = document.getElementById('diff-reason-container');
+      const diffDisplay = document.getElementById('diff-amount-display');
+      
+      if (!expectedNode || !actualNode) return;
+      
+      const expected = Number(expectedNode.getAttribute('data-val'));
+      const actual = parseNumeric(actualNode.value);
+      
+      if (actualNode.value === '') { reasonContainer.style.display = 'none'; return; }
+      
+      const diff = actual - expected;
+      if (diff !== 0) {
+         reasonContainer.style.display = 'block';
+         actualNode.style.borderColor = 'var(--danger)';
+         const diffText = diff > 0 ? `+ Lebih ${formatRp(diff)}` : `- Kurang ${formatRp(Math.abs(diff))}`;
+         diffDisplay.textContent = `⚠️ Uang laci ${diffText}`;
+      } else {
+         reasonContainer.style.display = 'none';
+         actualNode.style.borderColor = 'var(--success)';
+         document.getElementById('diff-reason-input').value = ''; // Hapus alasan jika ternyata pas
+      }
     }
     function closeModalCloseShift() { document.getElementById('modal-close-shift').classList.remove('show'); }
 
@@ -1484,12 +1531,46 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    function confirmCloseShift() {
+    async function confirmCloseShift() {
+      const actualNode = document.getElementById('actual-cash-input');
+      const reasonNode = document.getElementById('diff-reason-input');
+      const expectedNode = document.getElementById('expected-cash-drawer');
+
+      // Validasi 1: Kasir wajib mengisi uang fisik
+      if (!actualNode || actualNode.value === '') {
+        notify('Mohon hitung dan masukkan uang fisik!');
+        if(actualNode) actualNode.focus();
+        return;
+      }
+      
+      const expected = Number(expectedNode.getAttribute('data-val'));
+      const actual = parseNumeric(actualNode.value);
+      const diff = actual - expected;
+      
+      // Validasi 2: Jika selisih, alasan wajib diisi
+      if (diff !== 0 && reasonNode.value.trim() === '') {
+        notify('Alasan selisih uang wajib diisi!');
+        reasonNode.focus();
+        return;
+      }
+
       currentShift = null;
       localStorage.removeItem('moka_active_shift');
+      
+      // Kirim Data Tutup Shift ke Cloud Firebase
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { activeShift: null }, { merge: true }); } 
+        catch (err) { console.error('Sync close shift err:', err); }
+      }
+
       closeModalCloseShift();
-      checkShiftStatus();
-      notify('Shift ditutup.');
+      notify('Shift berhasil ditutup. Mengembalikan ke Layar Awal...');
+      
+      // Refresh halaman sepenuhnya agar kembali ke layar pemilihan peran (Kasir/Owner)
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     }
 
     function switchTab(name, btn) {
