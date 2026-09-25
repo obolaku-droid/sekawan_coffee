@@ -1198,6 +1198,23 @@
         userId = auth.currentUser?.uid || 'device-session';
         notify('Live Cloud Sync Aktif');
         setupRealtimeListeners();
+        
+        // --- AUTO-SYNC KETIKA KONEKSI PULIH ---
+        window.addEventListener('online', async () => {
+          notify('🌐 Internet pulih! Menyinkronkan data offline...');
+          // Sinkronisasi data transaksi offline jika ada
+          const offlineTx = JSON.parse(localStorage.getItem('moka_offline_tx')) || [];
+          if (offlineTx.length > 0 && db && appId) {
+            for (const t of offlineTx) {
+              try {
+                await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), t);
+              } catch(e) { console.debug('Sync offline item err:', e); }
+            }
+            localStorage.removeItem('moka_offline_tx');
+            notify('✅ Semua data offline berhasil disinkronkan ke Cloud!');
+          }
+        });
+
       } catch (err) {
         console.warn('Cloud sync error:', err);
       }
@@ -1270,25 +1287,37 @@
 
     async function cloudAddDocument(collectionName, data) {
       const fm = window.firebaseModules;
-      // Pastikan jika db belum siap, coba ambil langsung dari window.firebaseModules jika ada
-      if (!db && window.firebaseModules) {
-        // Coba tunggu sebentar atau pastikan instance ada
-        console.warn('Database belum siap sepenuhnya, mencoba menyimpan ulang...');
-      }
       
-      if (!db || !appId) {
-        // Simpan lokal jika benar-benar offline
-        if (collectionName === 'transactions') { transactions.unshift(data); renderHistory(); }
-        else if (collectionName === 'expenses') { expenses.unshift(data); renderExpenses(); }
-        notify('Disimpan secara lokal (Offline Mode)');
+      // Periksa status koneksi internet atau ketersediaan database
+      if (!db || !appId || !navigator.onLine) {
+        console.warn('Jaringan offline, menyimpan ke antrean lokal...');
+        
+        // Simpan ke memori lokal sementara
+        if (collectionName === 'transactions') {
+          transactions.unshift(data);
+          localStorage.setItem('moka_offline_tx', JSON.stringify(transactions));
+          renderHistory();
+        } else if (collectionName === 'expenses') {
+          expenses.unshift(data);
+          localStorage.setItem('moka_offline_exp', JSON.stringify(expenses));
+          renderExpenses();
+        }
+        
+        notify('📶 Mode Offline: Disimpan di perangkat lokal');
         return;
       }
 
       try {
         await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', collectionName), data);
       } catch (err) {
-        console.error('Cloud save failed:', err);
-        notify('Gagal menyimpan ke Cloud! Cek koneksi.');
+        console.error('Cloud save failed, fallback to local:', err);
+        // Fallback jika gagal kirim ke cloud saat koneksi tidak stabil
+        if (collectionName === 'transactions') {
+          transactions.unshift(data);
+          localStorage.setItem('moka_offline_tx', JSON.stringify(transactions));
+          renderHistory();
+        }
+        notify('⚠️ Gagal ke Cloud, disimpan lokal sementara');
       }
     }
 
