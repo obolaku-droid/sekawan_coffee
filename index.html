@@ -1222,11 +1222,20 @@
           // --- SINKRONISASI SHIFT KASIR KE CLOUD ---
           if (data.activeShift !== undefined) {
             currentShift = data.activeShift;
-            if (currentShift) localStorage.setItem('moka_active_shift', JSON.stringify(currentShift));
-            else localStorage.removeItem('moka_active_shift');
+            if (currentShift) {
+              localStorage.setItem('moka_active_shift', JSON.stringify(currentShift));
+            } else {
+              localStorage.removeItem('moka_active_shift');
+            }
             
-            checkShiftStatus();
-            if (document.getElementById('tab-privasi').classList.contains('active') && isOwnerAuthenticated) renderReports();
+            // Perbarui status tombol kasir di perangkat ini
+            if (typeof checkShiftStatus === 'function') checkShiftStatus();
+            
+            // Jika Owner sedang membuka tab Laporan/Privasi, langsung update tampilannya secara real-time!
+            const privasiTab = document.getElementById('tab-privasi');
+            if (privasiTab && privasiTab.classList.contains('active') && typeof isOwnerAuthenticated !== 'undefined' && isOwnerAuthenticated) {
+              if (typeof renderReports === 'function') renderReports();
+            }
           }
         }
       }, (err) => console.debug('Config sync err:', err));
@@ -1260,16 +1269,26 @@
     }
 
     async function cloudAddDocument(collectionName, data) {
+      const fm = window.firebaseModules;
+      // Pastikan jika db belum siap, coba ambil langsung dari window.firebaseModules jika ada
+      if (!db && window.firebaseModules) {
+        // Coba tunggu sebentar atau pastikan instance ada
+        console.warn('Database belum siap sepenuhnya, mencoba menyimpan ulang...');
+      }
+      
       if (!db || !appId) {
-        if (collectionName === 'transactions') { transactions.unshift(data); }
-        else if (collectionName === 'expenses') { expenses.unshift(data); }
+        // Simpan lokal jika benar-benar offline
+        if (collectionName === 'transactions') { transactions.unshift(data); renderHistory(); }
+        else if (collectionName === 'expenses') { expenses.unshift(data); renderExpenses(); }
+        notify('Disimpan secara lokal (Offline Mode)');
         return;
       }
-      const fm = window.firebaseModules;
+
       try {
         await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', collectionName), data);
       } catch (err) {
         console.error('Cloud save failed:', err);
+        notify('Gagal menyimpan ke Cloud! Cek koneksi.');
       }
     }
 
