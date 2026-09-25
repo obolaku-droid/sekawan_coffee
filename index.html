@@ -1994,10 +1994,31 @@
 
     function renderHistory() {
       document.getElementById('trx-badge-count').textContent = `${transactions.length} Data`;
-      document.getElementById('history-container').innerHTML = transactions.length === 0 ? '<div style="text-align:center; font-size:11px; color:#94a3b8;">Kosong</div>' : transactions.map(t => `
-        <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:8px; font-size:11px;">
-          <div style="display:flex; justify-content:space-between;"><strong>#${t.id}</strong><span style="color:var(--primary);">${formatRp(t.total)}</span></div>
-        </div>`).join('');
+      
+      document.getElementById('history-container').innerHTML = transactions.length === 0 ? '<div style="text-align:center; font-size:11px; color:#94a3b8; padding:20px;">Belum ada riwayat transaksi</div>' : transactions.map(t => {
+        let tgl = new Date(t.date);
+        let dateStr = isNaN(tgl) ? '-' : tgl.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WIB';
+        
+        return `
+        <div onclick="openReceiptHistory('${t.id}')" style="background:white; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:11px; box-shadow:0 1px 3px rgba(0,0,0,0.02); transition: background 0.2s;">
+          <div>
+            <strong style="font-size:12px; color:#0f172a;">#${t.id}</strong>
+            <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">📅 ${dateStr}</div>
+          </div>
+          <div style="text-align:right;">
+            <strong style="color:var(--primary); font-size:13px; display:block;">${formatRp(t.total)}</strong>
+            <span style="font-size:9px; color:#94a3b8;">Ketuk untuk rincian ➔</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function openReceiptHistory(txId) {
+      const tx = transactions.find(t => t.id === txId);
+      if (tx) {
+        lastReceipt = tx; // Memastikan fitur "Cetak" & "Kirim WA" di pop-up mengambil data yang benar
+        showSuccessReceipt(tx);
+      }
     }
 
     function openModalExpense() {
