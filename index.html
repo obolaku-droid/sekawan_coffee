@@ -1926,7 +1926,7 @@
       for (let i = 1; i <= maxTableNumber; i++) {
         const bill = activeBills.find(b => b.type === 'dine_in' && b.table === i);
         if (bill) {
-          htmlGrid += `<button class="table-box table-occupied" onclick="loadBill('${bill.id}')"><span style="font-size:16px; font-weight:800;">${i}</span><span style="font-size:8px; font-weight:bold;">Terisi</span><span style="font-size:9px;">${formatRp(bill.total)}</span></button>`;
+          htmlGrid += `<button class="table-box table-occupied" onclick="openTableActionModal('${bill.id}', ${i})"><span style="font-size:16px; font-weight:800;">${i}</span><span style="font-size:8px; font-weight:bold;">Terisi</span><span style="font-size:9px;">${formatRp(bill.total)}</span></button>`;
         } else {
           htmlGrid += `<button class="table-box table-available" onclick="startNewTable(${i})"><span style="font-size:16px; font-weight:800;">${i}</span><span style="font-size:8px; font-weight:bold;">Kosong</span></button>`;
         }
@@ -2865,6 +2865,131 @@ function printPreorder() {
       applyStoreConfig(); renderCategoriesBar(); renderProducts(); updateCartDisplay(); updateBadgeMeja();
       initFirebaseSync();
     });
+
+let selectedActiveBillId = null;
+
+    function openTableActionModal(billId, tableNum) {
+      selectedActiveBillId = billId;
+      const bill = activeBills.find(b => b.id === billId);
+      if (!bill) return;
+
+      // Buat modal aksi meja secara dinamis jika belum ada
+      let modalOverlay = document.getElementById('modal-table-action');
+      if (!modalOverlay) {
+        modalOverlay = document.createElement('div');
+        modalOverlay.id = 'modal-table-action';
+        modalOverlay.className = 'modal-overlay';
+        modalOverlay.innerHTML = `
+          <div class="modal-sheet" style="text-align:center; max-width:300px;">
+            <h3 id="table-action-title" style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:8px;">Aksi Meja</h3>
+            <p id="table-action-desc" style="font-size:10px; color:var(--text-muted); margin-bottom:12px;"></p>
+            
+            <button class="btn-full btn-primary" onclick="loadBill(selectedActiveBillId); closeModalTableAction();" style="margin-bottom:6px; padding:8px;">📂 Buka / Lanjutkan Pesanan</button>
+            <button class="btn-full btn-secondary" onclick="promptTransferTable()" style="margin-bottom:6px; padding:8px; background:#e0f2fe; color:#0369a1;">🔄 Pindah Meja (Transfer)</button>
+            <button class="btn-full btn-secondary" onclick="promptMergeTable()" style="margin-bottom:6px; padding:8px; background:#fef3c7; color:#92400e;">➕ Gabung Meja (Merge)</button>
+            <button class="btn-full btn-secondary" onclick="closeModalTableAction()" style="padding:8px;">Batal</button>
+          </div>
+        `;
+        document.body.appendChild(modalOverlay);
+      }
+
+      document.getElementById('table-action-title').textContent = `Meja ${tableNum} (Terisi)`;
+      document.getElementById('table-action-desc').textContent = `Total Tagihan: ${formatRp(bill.total)}`;
+      modalOverlay.classList.add('show');
+    }
+
+    function closeModalTableAction() {
+      const modal = document.getElementById('modal-table-action');
+      if (modal) modal.classList.remove('show');
+    }
+
+    // 1. Fitur Pindah Meja (Transfer Table)
+    async function promptTransferTable() {
+      const targetNumStr = prompt("Pindah ke nomor meja berapa (kosong/tujuan baru)?", "");
+      if (!targetNumStr) return;
+      const targetNum = Number(targetNumStr);
+      if (!targetNum || targetNum <= 0) { notify('Nomor meja tidak valid!'); return; }
+
+      // Cek apakah meja tujuan sudah terisi
+      const occupiedTarget = activeBills.find(b => b.type === 'dine_in' && b.table === targetNum);
+      if (occupiedTarget) {
+        notify(`Meja ${targetNum} sedang terisi! Gunakan fitur Gabung Meja.`);
+        return;
+      }
+
+      const bill = activeBills.find(b => b.id === selectedActiveBillId);
+      if (!bill) return;
+
+      bill.table = targetNum;
+      closeModalTableAction();
+
+      // Sinkronisasi ke Cloud Firebase
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          if (bill.firestoreId) {
+            await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', bill.firestoreId), bill);
+          }
+        } catch (err) { console.error('Transfer meja err:', err); }
+      }
+
+      renderMeja();
+      updateBadgeMeja();
+      notify(`Berhasil dipindah ke Meja ${targetNum}`);
+    }
+
+    // 2. Fitur Gabung Meja (Merge Table)
+    async function promptMergeTable() {
+      const sourceBill = activeBills.find(b => b.id === selectedActiveBillId);
+      if (!sourceBill) return;
+
+      // Cari meja lain yang juga terisi untuk digabungkan
+      const otherOccupiedBills = activeBills.filter(b => b.type === 'dine_in' && b.id !== selectedActiveBillId);
+      if (otherOccupiedBills.length === 0) {
+        notify('Tidak ada meja lain yang terisi untuk digabungkan!');
+        return;
+      }
+
+      let listStr = otherOccupiedBills.map(b => `Meja ${b.table} (${formatRp(b.total)})`).join('\n');
+      const targetTableStr = prompt(`Pilih nomor meja lain yang ingin digabungkan ke Meja ${sourceBill.table}:\n\n${listStr}\n\nMasukkan Nomor Meja Tujuan Gabung:`, "");
+      if (!targetTableStr) return;
+
+      const targetTableNum = Number(targetTableStr);
+      const targetBill = otherOccupiedBills.find(b => b.table === targetTableNum);
+
+      if (!targetBill) {
+        notify('Meja tujuan tidak ditemukan atau tidak terisi!');
+        return;
+      }
+
+      // Gabungkan isi keranjang (cartData)
+      for (const [varId, qty] of Object.entries(targetBill.cartData)) {
+        sourceBill.cartData[varId] = (sourceBill.cartData[varId] || 0) + qty;
+      }
+      sourceBill.total += targetBill.total;
+
+      closeModalTableAction();
+
+      // Hapus bill target di database & update bill sumber
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          if (targetBill.firestoreId) {
+            await fm.deleteDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', targetBill.firestoreId));
+          }
+          if (sourceBill.firestoreId) {
+            await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', sourceBill.firestoreId), sourceBill);
+          }
+        } catch (err) { console.error('Merge meja err:', err); }
+      }
+
+      // Hapus dari array lokal
+      activeBills = activeBills.filter(b => b.id !== targetBill.id);
+      renderMeja();
+      updateBadgeMeja();
+      notify(`Berhasil menggabungkan Meja ${targetBill.table} ke Meja ${sourceBill.table}!`);
+    }
+    
   </script>
 </body>
 </html>
