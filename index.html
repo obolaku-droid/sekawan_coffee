@@ -833,13 +833,17 @@
             </div>
 
             <button class="btn-full btn-wa" onclick="shareWhatsAppReport()" style="padding:8px; font-size:11px;">Kirim Laporan ke WA</button>
-            <button class="btn-full btn-secondary" onclick="downloadMonthlyReportPDF()" style="padding:8px; font-size:11px;">Download PDF Bulanan</button>
+            <button id="btn-download-pdf" class="btn-full btn-secondary" onclick="downloadReportPDF()" style="padding:8px; font-size:11px; transition:0.2s;">Download PDF Bulanan</button>
 
             <div style="margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px;">
-              <button class="btn-full btn-secondary" style="padding:6px; font-size:10px;" onclick="exportCompleteCSV()">Download Full Backup (CSV)</button>
-              <input type="file" id="csv-uploader" accept=".csv" onchange="importCompleteCSV(event)" style="font-size:10px; width:100%; margin-top:6px;">
+              <button class="btn-full btn-secondary" style="padding:6px; font-size:10px; margin-bottom:8px;" onclick="exportCompleteCSV()">Download Full Backup (CSV)</button>
+              
+              <!-- UI Baru untuk Import CSV yang lebih menyatu -->
+              <label for="csv-uploader" class="btn-full" style="display:block; text-align:center; background:#e2e8f0; color:#334155; padding:6px; border-radius:12px; font-size:10px; font-weight:700; cursor:pointer; margin-top:0;">
+                📂 Restore / Import Data (CSV)
+              </label>
+              <input type="file" id="csv-uploader" accept=".csv" onchange="importCompleteCSV(event)" style="display:none;">
             </div>
-          </div>
 
           <div id="sub-pengaturan-container" class="hidden">
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
@@ -2339,21 +2343,26 @@
       let isCurr = (d) => false;
       let isPrev = (d) => false;
 
+      const pdfBtn = document.getElementById('btn-download-pdf');
+
       if (currentLapPeriod === 'harian') {
         prev.setDate(now.getDate() - 1);
         isCurr = (d) => isSameDay(d, now);
         isPrev = (d) => isSameDay(d, prev);
         document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Hari Ini)";
+        if(pdfBtn) pdfBtn.textContent = 'Download PDF Harian';
       } else if (currentLapPeriod === 'mingguan') {
         prev.setDate(now.getDate() - 7);
         isCurr = (d) => (now - d) / (1000 * 60 * 60 * 24) <= 7 && d <= now;
         isPrev = (d) => { const diff = (now - d) / (1000 * 60 * 60 * 24); return diff > 7 && diff <= 14; };
         document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (7 Hari Terakhir)";
+        if(pdfBtn) pdfBtn.textContent = 'Download PDF Mingguan';
       } else if (currentLapPeriod === 'bulanan') {
         prev.setMonth(now.getMonth() - 1);
         isCurr = (d) => isSameMonth(d, now);
         isPrev = (d) => isSameMonth(d, prev);
         document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Bulan Ini)";
+        if(pdfBtn) pdfBtn.textContent = 'Download PDF Bulanan';
       } else if (currentLapPeriod === 'custom') {
         const startVal = document.getElementById('date-start').value;
         const endVal = document.getElementById('date-end').value;
@@ -2366,6 +2375,7 @@
         isPrev = (d) => false; 
         
         document.getElementById('lap-title-omzet').textContent = `Periode: ${startDate.toLocaleDateString('id-ID')} - ${endDate.toLocaleDateString('id-ID')}`;
+        if(pdfBtn) pdfBtn.textContent = 'Download PDF Custom';
       }
 
       const currTx = transactions.filter(t => isCurr(new Date(t.date)));
@@ -2417,9 +2427,6 @@
 
       document.getElementById('profit-sharing-list').innerHTML = PROFIT_SHARING_MEMBERS.map(m => `
         <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
-
-      // Menggambar Grafik Otomatis Secara Akurat ke Background
-      
     }
 
     function shareWhatsAppReport() {
@@ -2440,12 +2447,41 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    function downloadMonthlyReportPDF() {
+    function downloadReportPDF() {
       const printWindow = window.open('', '_blank');
       const now = new Date();
       
-      const mTx = transactions.filter(t => isSameMonth(new Date(t.date), now));
-      const mExp = expenses.filter(e => isSameMonth(new Date(e.date), now));
+      let isCurr = (d) => false;
+      let periodText = '';
+      let titlePdf = 'LAPORAN KEUANGAN';
+
+      // Menentukan periode dinamis
+      if (currentLapPeriod === 'harian') {
+        isCurr = (d) => isSameDay(d, now);
+        periodText = now.toLocaleDateString('id-ID', { day:'numeric', month: 'long', year: 'numeric' });
+        titlePdf += ' HARIAN';
+      } else if (currentLapPeriod === 'mingguan') {
+        isCurr = (d) => (now - d) / (1000 * 60 * 60 * 24) <= 7 && d <= now;
+        let lastWeek = new Date(now); lastWeek.setDate(now.getDate() - 7);
+        periodText = `${lastWeek.toLocaleDateString('id-ID', { day:'numeric', month:'short' })} - ${now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' })}`;
+        titlePdf += ' MINGGUAN';
+      } else if (currentLapPeriod === 'bulanan') {
+        isCurr = (d) => isSameMonth(d, now);
+        periodText = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        titlePdf += ' BULANAN';
+      } else if (currentLapPeriod === 'custom') {
+        const startVal = document.getElementById('date-start').value;
+        const endVal = document.getElementById('date-end').value;
+        if (!startVal || !endVal) { notify('Pilih tanggal awal & akhir dulu!'); printWindow.close(); return; }
+        const startDate = new Date(startVal); startDate.setHours(0,0,0,0);
+        const endDate = new Date(endVal); endDate.setHours(23,59,59,999);
+        isCurr = (d) => d >= startDate && d <= endDate;
+        periodText = `${startDate.toLocaleDateString('id-ID')} s/d ${endDate.toLocaleDateString('id-ID')}`;
+        titlePdf += ' PERIODE CUSTOM';
+      }
+
+      const mTx = transactions.filter(t => isCurr(new Date(t.date)));
+      const mExp = expenses.filter(e => isCurr(new Date(e.date)));
       
       const omzet = mTx.reduce((acc, t) => acc + t.total, 0);
       const totalPorsi = mTx.reduce((acc, t) => acc + t.items.reduce((sum, i) => sum + i.qty, 0), 0);
@@ -2469,7 +2505,6 @@
       });
       const topItems = Object.entries(itemStats).sort((a,b) => b[1].omzet - a[1].omzet);
 
-      // --- PERBAIKAN LOGIKA HUTANG DI PDF (PER-ITEM & KRONOLOGIS) ---
       let debtPayments = {}; let fallbackPayments = {};
       expenses.forEach(e => {
         if (e.type === 'bayar_hutang') {
@@ -2481,6 +2516,7 @@
       const activeDebts = [];
       let totalSisaHutang = 0;
       
+      // Sisa Hutang tetap mengambil dari global time karena ini adalah "Kewajiban aktif saat ini"
       expenses.filter(e => e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(e => {
         const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
         let paid = debtPayments[key] || 0;
@@ -2497,9 +2533,8 @@
         }
       });
 
-      const sisaHutang = totalSisaHutang; // Menggunakan sisa hutang aktual secara keseluruhan
+      const sisaHutang = totalSisaHutang;
 
-      // Generate HTML Tabel Hutang (dengan Tanggal dan Keterangan Item, tanpa Jatuh Tempo)
       let activeHutangHTML = '';
       activeDebts.forEach(d => {
           let tgl = new Date(d.date).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
@@ -2507,14 +2542,13 @@
       });
       if(activeHutangHTML === '') activeHutangHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada hutang aktif</td></tr>';
 
-      // --- KAS KELUAR & PELUNASAN (Tambahan Tanggal & Item) ---
       let rincianKasKeluarHTML = '';
       mExp.filter(e => e.type === 'kas').forEach(e => {
           const pct = omzet > 0 ? ((e.amount / omzet) * 100).toFixed(1) : 0;
           let tgl = new Date(e.date).toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' });
           rincianKasKeluarHTML += `<tr><td style="padding-left: 20px;">[${tgl}] ${e.note}</td><td>(${formatRp(e.amount)})</td><td>${pct}%</td></tr>`;
       });
-      if(rincianKasKeluarHTML === '') rincianKasKeluarHTML = '<tr><td style="padding-left: 20px; color:#999;">- Tidak ada kas keluar</td><td>(Rp 0)</td><td>0%</td></tr>';
+      if(rincianKasKeluarHTML === '') rincianKasKeluarHTML = '<tr><td style="padding-left: 20px; color:#999;">- Tidak ada kas keluar pada periode ini</td><td>(Rp 0)</td><td>0%</td></tr>';
 
       let rincianPelunasanHTML = '';
       mExp.filter(e => e.type === 'bayar_hutang').forEach(e => {
@@ -2522,34 +2556,34 @@
           let tgl = new Date(e.date).toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' });
           rincianPelunasanHTML += `<tr><td style="padding-left: 20px;">[${tgl}] ${e.note} (${e.supplier})</td><td>(${formatRp(e.amount)})</td><td>${pct}%</td></tr>`;
       });
-      if(rincianPelunasanHTML === '') rincianPelunasanHTML = '<tr><td style="padding-left: 20px; color:#999;">- Tidak ada pelunasan hutang</td><td>(Rp 0)</td><td>0%</td></tr>';
+      if(rincianPelunasanHTML === '') rincianPelunasanHTML = '<tr><td style="padding-left: 20px; color:#999;">- Tidak ada pelunasan hutang pada periode ini</td><td>(Rp 0)</td><td>0%</td></tr>';
 
       let analisaText = '';
       if (omzet > 0) {
-        analisaText += `Kinerja keuangan bulan ini mencatatkan omzet sebesar <b>${formatRp(omzet)}</b> dengan laba bersih <b>${formatRp(labaBersih)}</b> (Margin: ${marginLaba}%). `;
+        analisaText += `Kinerja keuangan periode ini mencatatkan omzet sebesar <b>${formatRp(omzet)}</b> dengan laba bersih <b>${formatRp(labaBersih)}</b> (Margin: ${marginLaba}%). `;
         if (rasioBiaya > 40) analisaText += `Rasio biaya operasional mencapai ${rasioBiaya}%, disarankan untuk mengevaluasi pengeluaran agar lebih efisien. `;
         else analisaText += `Rasio biaya operasional terjaga di angka ${rasioBiaya}%, menunjukkan efisiensi yang baik. `;
-        if (sisaHutang > 0) analisaText += `Terdapat sisa hutang supplier sebesar <b>${formatRp(sisaHutang)}</b> yang perlu diprioritaskan pelunasannya bulan depan.`;
-        else analisaText += `Tidak ada tunggakan hutang supplier (lunas), kondisi arus kas sangat sehat.`;
+        if (sisaHutang > 0) analisaText += `Terdapat total sisa hutang supplier aktif (keseluruhan) sebesar <b>${formatRp(sisaHutang)}</b> yang masih perlu diprioritaskan pelunasannya.`;
+        else analisaText += `Tidak ada tunggakan hutang supplier yang masih aktif, kondisi arus kas sangat sehat.`;
       } else {
-        analisaText = 'Belum ada data transaksi yang memadai untuk dianalisa pada bulan ini.';
+        analisaText = 'Belum ada data transaksi yang memadai untuk dianalisa pada periode ini.';
       }
 
       printWindow.document.write(`
-        <html><head><title>Laporan Keuangan Bulanan - ${storeConfig.name}</title><style>
+        <html><head><title>${titlePdf} - ${storeConfig.name}</title><style>
             @page { size: A4; margin: 15mm; } body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; background: #fdfcf8; font-size: 12px; margin: 0; } .page { page-break-after: always; padding: 20px; } .header { border-bottom: 3px solid #3e2723; padding-bottom: 10px; margin-bottom: 20px; } .header h1 { color: #3e2723; margin: 0; font-size: 24px; text-transform: uppercase; } .header p { margin: 5px 0 0 0; color: #5d4037; font-size: 12px; } .summary-cards { display: flex; gap: 10px; margin-bottom: 20px; } .card { flex: 1; background: white; border: 1px solid #d7ccc8; padding: 15px; border-radius: 8px; border-top: 4px solid #3e2723; } .card-title { font-size: 10px; font-weight: bold; color: #795548; text-transform: uppercase; margin-bottom: 5px; } .card-value { font-size: 18px; font-weight: bold; color: #3e2723; } .card-sub { font-size: 10px; color: #8d6e63; margin-top: 5px; } h2 { font-size: 16px; color: #3e2723; border-bottom: 1px solid #d7ccc8; padding-bottom: 5px; margin-top: 20px; } table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: white; } th, td { border: 1px solid #d7ccc8; padding: 8px 10px; text-align: left; } th { background: #efebe9; color: #3e2723; font-weight: bold; font-size: 11px; } td { font-size: 11px; } .bar-container { width: 100%; background: #efebe9; border-radius: 4px; height: 12px; margin-top: 4px; overflow: hidden; } .bar-fill { height: 100%; background: #8d6e63; } .bar-fill.dark { background: #3e2723; } .signature-area { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; } .sign-box { width: 22%; border-top: 1px solid #333; padding-top: 5px; font-size: 11px; } .analisa-box { background: white; border: 1px solid #d7ccc8; padding: 15px; border-radius: 8px; font-size: 11px; line-height: 1.5; margin-bottom: 20px; } .catatan-box { border: 1px dashed #d7ccc8; height: 100px; border-radius: 8px; margin-bottom: 20px; background: #fafafa; } .row-title { background: #fdfcf8; font-weight: bold; color: #795548; font-size: 10px; text-transform: uppercase; }
         </style></head><body>
-          <div class="page"><div class="header"><h1>LAPORAN KEUANGAN BULANAN</h1><p><b>${storeConfig.name}</b> | Periode: ${now.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}</p></div>
-            <div class="summary-cards"><div class="card"><div class="card-title">OMZET</div><div class="card-value">${formatRp(omzet)}</div><div class="card-sub">${totalPorsi} porsi terjual</div></div><div class="card"><div class="card-title">TOTAL BIAYA</div><div class="card-value">${formatRp(totalBiaya)}</div><div class="card-sub">${rasioBiaya}% dari omzet</div></div><div class="card"><div class="card-title">LABA BERSIH</div><div class="card-value">${formatRp(labaBersih)}</div><div class="card-sub">Margin ${marginLaba}%</div></div><div class="card" style="border-top-color: #d84315;"><div class="card-title">HUTANG SUPPLIER</div><div class="card-value" style="color: #d84315;">${formatRp(sisaHutang)}</div><div class="card-sub">Belum lunas akhir bulan</div></div></div>
+          <div class="page"><div class="header"><h1>${titlePdf}</h1><p><b>${storeConfig.name}</b> | Periode: ${periodText}</p></div>
+            <div class="summary-cards"><div class="card"><div class="card-title">OMZET PERIODE INI</div><div class="card-value">${formatRp(omzet)}</div><div class="card-sub">${totalPorsi} porsi terjual</div></div><div class="card"><div class="card-title">TOTAL BIAYA</div><div class="card-value">${formatRp(totalBiaya)}</div><div class="card-sub">${rasioBiaya}% dari omzet</div></div><div class="card"><div class="card-title">LABA BERSIH</div><div class="card-value">${formatRp(labaBersih)}</div><div class="card-sub">Margin ${marginLaba}%</div></div><div class="card" style="border-top-color: #d84315;"><div class="card-title">HUTANG SUPPLIER</div><div class="card-value" style="color: #d84315;">${formatRp(sisaHutang)}</div><div class="card-sub">Belum lunas keseluruhan</div></div></div>
             <h2>1. Laporan Penjualan per Produk</h2><table><tr><th>Produk</th><th>Harga (Rp)</th><th>Terjual</th><th>Omzet (Rp)</th><th>% Omzet</th></tr>
-              ${topItems.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Belum ada data penjualan</td></tr>' : topItems.map((item, idx) => { const pct = omzet > 0 ? ((item[1].omzet / omzet) * 100).toFixed(1) : 0; const darkClass = idx === 0 ? 'dark' : ''; return `<tr><td>${item[0]}</td><td>${formatRp(item[1].price)}</td><td>${item[1].qty}</td><td>${formatRp(item[1].omzet)}</td><td>${pct}% <div class="bar-container"><div class="bar-fill ${darkClass}" style="width:${pct}%"></div></div></td></tr>`; }).join('')}
+              ${topItems.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Belum ada data penjualan pada periode ini</td></tr>' : topItems.map((item, idx) => { const pct = omzet > 0 ? ((item[1].omzet / omzet) * 100).toFixed(1) : 0; const darkClass = idx === 0 ? 'dark' : ''; return `<tr><td>${item[0]}</td><td>${formatRp(item[1].price)}</td><td>${item[1].qty}</td><td>${formatRp(item[1].omzet)}</td><td>${pct}% <div class="bar-container"><div class="bar-fill ${darkClass}" style="width:${pct}%"></div></div></td></tr>`; }).join('')}
             </table>
           </div>
           <div class="page"><h2>2. Laporan Laba Rugi Sederhana</h2><table><tr><th>Keterangan</th><th>Jumlah (Rp)</th><th>% Omzet</th></tr><tr><td><b>Omzet Penjualan</b></td><td><b>${formatRp(omzet)}</b></td><td><b>100%</b></td></tr><tr><td colspan="3" class="row-title">Total Biaya Operasional / Kas Keluar:</td></tr>${rincianKasKeluarHTML}<tr><td colspan="3" class="row-title">Pelunasan Hutang:</td></tr>${rincianPelunasanHTML}<tr style="background:#efebe9; border-top:2px solid #d7ccc8;"><td><b>TOTAL BIAYA KESELURUHAN</b></td><td><b>(${formatRp(totalBiaya)})</b></td><td><b>${rasioBiaya}%</b></td></tr><tr><td><b>LABA BERSIH</b></td><td><b>${formatRp(labaBersih)}</b></td><td><b>${marginLaba}%</b></td></tr></table>
-            <h2>3. Posisi Hutang Supplier Tertunda</h2><table><tr><th>Tanggal</th><th>Supplier</th><th>Item / Keterangan</th><th>Sisa Hutang (Rp)</th></tr>${activeHutangHTML}<tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr></table><p style="font-size:10px; color:#5d4037;">*Catatan: Rincian ini adalah sisa kewajiban aktif yang belum terlunasi hingga saat ini.</p>
+            <h2>3. Posisi Hutang Supplier Tertunda (Global)</h2><table><tr><th>Tanggal</th><th>Supplier</th><th>Item / Keterangan</th><th>Sisa Hutang (Rp)</th></tr>${activeHutangHTML}<tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr></table><p style="font-size:10px; color:#5d4037;">*Catatan: Rincian tabel hutang ini membaca keseluruhan kewajiban aktif yang belum terlunasi hingga detik ini (tidak dibatasi oleh periode cetak di atas).</p>
           </div>
           <div class="page"><h2>4. Analisa Keseluruhan</h2><div class="analisa-box">${analisaText}</div>
-            <h2>5. Pembagian Hasil (Laba Bersih)</h2><p style="font-size:11px;">Dihitung penuh dari Laba Bersih: <b>${formatRp(labaBersih)}</b></p>
+            <h2>5. Pembagian Hasil (Laba Bersih)</h2><p style="font-size:11px;">Dihitung penuh dari Laba Bersih periode ini: <b>${formatRp(labaBersih)}</b></p>
             <table><tr><th>Pihak</th><th>Porsi</th><th>Diterima (Rp)</th></tr><tr><td>Hamzah</td><td>40%</td><td>${formatRp(labaBersih * 0.40)}</td></tr><tr><td>Ridha Fadli</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr><td>Velayani</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr><td>Maulana</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr><td>Ikram</td><td>15%</td><td>${formatRp(labaBersih * 0.15)}</td></tr><tr style="background:#efebe9; font-weight:bold;"><td colspan="2">Total Laba Dibagikan</td><td>${formatRp(labaBersih)}</td></tr></table>
             <h2>6. Catatan & Keputusan Bersama</h2><div class="catatan-box"></div>
             <p style="font-size:11px; font-weight:bold; margin-top:30px; margin-bottom: 20px;">Disetujui oleh:</p>
