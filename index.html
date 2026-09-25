@@ -2152,22 +2152,72 @@ function printPreorder() {
     function renderHistory() {
       document.getElementById('trx-badge-count').textContent = `${transactions.length} Data`;
       
-      document.getElementById('history-container').innerHTML = transactions.length === 0 ? '<div style="text-align:center; font-size:11px; color:#94a3b8; padding:20px;">Belum ada riwayat transaksi</div>' : transactions.map(t => {
-        let tgl = new Date(t.date);
-        let dateStr = isNaN(tgl) ? '-' : tgl.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + ' WIB';
+      if (transactions.length === 0) {
+        document.getElementById('history-container').innerHTML = '<div style="text-align:center; font-size:11px; color:#94a3b8; padding:20px;">Belum ada riwayat transaksi</div>';
+        return;
+      }
+
+      // 1. Kelompokkan transaksi berdasarkan Tanggal (Format: YYYY-MM-DD)
+      const groups = {};
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      transactions.forEach(t => {
+        let d = new Date(t.date);
+        let dateKey = isNaN(d) ? 'Lainnya' : d.toISOString().split('T')[0];
+        if (!groups[dateKey]) groups[dateKey] = [];
+        groups[dateKey].push(t);
+      });
+
+      // 2. Urutkan tanggal dari yang paling baru ke terlama
+      const sortedDates = Object.keys(groups).sort((a, b) => new Date(b) - new Date(a));
+
+      let html = '';
+      sortedDates.forEach((dateKey, index) => {
+        const txList = groups[dateKey];
+        let displayDate = dateKey;
         
-        return `
-        <div onclick="openReceiptHistory('${t.id}')" style="background:white; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:11px; box-shadow:0 1px 3px rgba(0,0,0,0.02); transition: background 0.2s;">
-          <div>
-            <strong style="font-size:12px; color:#0f172a;">#${t.id}</strong>
-            <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">📅 ${dateStr}</div>
+        if (dateKey !== 'Lainnya') {
+          let parts = dateKey.split('-');
+          let dtObj = new Date(parts[0], parts[1] - 1, parts[2]);
+          displayDate = dtObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        // Hari yang sedang berjalan (today) otomatis terbuka (tidak pakai hidden), hari lain tertutup
+        const isToday = (dateKey === todayStr);
+        const containerId = `history-group-${index}`;
+        const subHtml = txList.map(t => {
+          let tgl = new Date(t.date);
+          let timeStr = isNaN(tgl) ? '-' : tgl.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+          
+          return `
+          <div onclick="openReceiptHistory('${t.id}')" style="background:white; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:11px; box-shadow:0 1px 3px rgba(0,0,0,0.02); transition: background 0.2s;">
+            <div>
+              <strong style="font-size:12px; color:#0f172a;">#${t.id}</strong>
+              <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">🕒 ${timeStr}</div>
+            </div>
+            <div style="text-align:right;">
+              <strong style="color:var(--primary); font-size:13px; display:block;">${formatRp(t.total)}</strong>
+              <span style="font-size:9px; color:#94a3b8;">Ketuk untuk rincian ➔</span>
+            </div>
+          </div>`;
+        }).join('');
+
+        const subTotalOmzet = txList.reduce((acc, t) => acc + t.total, 0);
+
+        html += `
+          <div style="margin-bottom: 8px;">
+            <div onclick="document.getElementById('${containerId}').classList.toggle('hidden')" style="background:${isToday ? '#e0f2fe' : '#f1f5f9'}; border:1px solid ${isToday ? '#bae6fd' : '#cbd5e1'}; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-size:11px; font-weight:bold; color:${isToday ? '#0369a1' : '#334155'};">
+              <div>📅 ${displayDate} &nbsp;<span style="font-weight:normal; font-size:10px; opacity:0.8;">(${txList.length} Trx - ${formatRp(subTotalOmzet)})</span></div>
+              <div style="font-size:10px;">${isToday ? '🟢 Hari Ini (Terbuka)' : '▼ Buka/Tutup'}</div>
+            </div>
+            <div id="${containerId}" class="${isToday ? '' : 'hidden'}" style="margin-top: 6px; padding-left: 6px;">
+              ${subHtml}
+            </div>
           </div>
-          <div style="text-align:right;">
-            <strong style="color:var(--primary); font-size:13px; display:block;">${formatRp(t.total)}</strong>
-            <span style="font-size:9px; color:#94a3b8;">Ketuk untuk rincian ➔</span>
-          </div>
-        </div>`;
-      }).join('');
+        `;
+      });
+
+      document.getElementById('history-container').innerHTML = html;
     }
 
     function openReceiptHistory(txId) {
