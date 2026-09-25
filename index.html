@@ -659,6 +659,10 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span>Area Owner (Privasi)</span>
         </button>
+        <button class="drawer-item" onclick="openModalLicense()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Lisensi & Bantuan</span>
+        </button>
       </div>
       <div style="padding:10px; font-size:9px; color:var(--text-muted); text-align:center; border-top:1px solid var(--border);">App by POLEM</div>
     </div>
@@ -891,6 +895,30 @@
     <div class="watermark">App by POLEM</div>
   </div>
 
+  <!-- Modal Lisensi & Kontak -->
+  <div id="modal-license" class="modal-overlay">
+    <div class="modal-sheet" style="text-align:center; max-width:320px;">
+      <div style="width:48px; height:48px; background:var(--primary-light); color:var(--primary); border-radius:16px; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3 style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:2px;">Sekawan Coffee POS</h3>
+      <p style="font-size:10px; color:var(--text-muted); margin-bottom:12px;">Versi 10.0 Cloud Enterprise</p>
+
+      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:10px; text-align:left; font-size:11px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Status Lisensi:</span><strong style="color:var(--success);">Aktif (Resmi)</strong></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Pengembang:</span><strong>POLEM</strong></div>
+        <div style="display:flex; justify-content:space-between;"><span>Dukungan:</span><strong>24/7 Cloud Support</strong></div>
+      </div>
+
+      <p style="font-size:10px; color:var(--text-muted); margin-bottom:12px;">Butuh bantuan teknis, penambahan fitur, atau perpanjangan lisensi? Hubungi pengembang melalui tombol di bawah:</p>
+
+      <button class="btn-full btn-wa" onclick="contactDeveloperWA()" style="margin-bottom:6px; padding:10px; font-size:11px;">💬 Hubungi Pengembang (WA)</button>
+      <button class="btn-full btn-secondary" onclick="closeModalLicense()" style="padding:8px;">Tutup</button>
+      
+      <div style="margin-top:14px; font-size:9px; color:var(--text-muted); font-weight:600; letter-spacing:1px;">App by POLEM</div>
+    </div>
+  </div>
+  
   <!-- Modal Checkout -->
   <div id="modal-checkout" class="modal-overlay">
     <div class="modal-sheet">
@@ -2988,6 +3016,26 @@ let selectedActiveBillId = null;
       renderMeja();
       updateBadgeMeja();
       notify(`Berhasil menggabungkan Meja ${targetBill.table} ke Meja ${sourceBill.table}!`);
+    }
+
+    function openModalLicense() {
+      // Tutup drawer terlebih dahulu agar rapi
+      document.getElementById('drawer-overlay').classList.remove('show');
+      document.getElementById('drawer-menu').classList.remove('show');
+      
+      document.getElementById('modal-license').classList.add('show');
+    }
+
+    function closeModalLicense() {
+      document.getElementById('modal-license').classList.remove('show');
+    }
+
+    function contactDeveloperWA() {
+      // PERHATIAN: Ganti nomor di bawah dengan nomor WhatsApp Anda 
+      // (Format internasional tanpa angka 0 di depan, contoh: 6281234567890)
+      const waNumber = "6281234567890"; 
+      const message = "Halo Kak POLEM, saya ingin bertanya mengenai aplikasi Cloud POS Sekawan Coffee yang sedang saya gunakan.";
+      window.open(`https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(message)}`, '_blank');
     }
     
   </script>
