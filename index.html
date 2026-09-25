@@ -501,6 +501,47 @@
       font-weight: 600;
       cursor: pointer;
     }
+
+    /* --- TABLET & KOMPUTER UPGRADE (RESPONSIVE MODE) --- */
+    .app-frame {
+      transition: max-width 0.3s ease, height 0.3s ease;
+    }
+
+    @media (min-width: 768px) {
+      .app-frame {
+        max-width: 720px !important; /* Melebar di Tablet */
+      }
+      .product-grid {
+        grid-template-columns: repeat(4, 1fr) !important; /* 4 Kolom Menu */
+        gap: 12px;
+      }
+      .product-card {
+        height: 120px !important; /* Sedikit lebih tinggi agar lega */
+      }
+      .table-grid {
+        grid-template-columns: repeat(6, 1fr) !important; /* 6 Kolom Meja */
+        gap: 12px;
+      }
+      .modal-sheet {
+        max-width: 460px !important; /* Jendela pop-up lebih lebar */
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .app-frame {
+        max-width: 960px !important; /* Melebar Penuh di Monitor Laptop/Komputer */
+        height: 95vh !important;
+        margin-top: 2.5vh !important;
+        border-radius: 20px !important;
+      }
+      .product-grid {
+        grid-template-columns: repeat(5, 1fr) !important; /* 5 Kolom Menu */
+      }
+      .table-grid {
+        grid-template-columns: repeat(8, 1fr) !important; /* 8 Kolom Meja */
+      }
+    }
+    
     .lap-pill.active { background: #ffffff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   </style>
 </head>
