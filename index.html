@@ -846,13 +846,14 @@
             <div style="margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px;">
               <button class="btn-full btn-secondary" style="padding:6px; font-size:10px; margin-bottom:8px;" onclick="exportCompleteCSV()">Download Full Backup (CSV)</button>
               
-              <!-- UI Baru untuk Import CSV yang lebih menyatu -->
               <label for="csv-uploader" class="btn-full" style="display:block; text-align:center; background:#e2e8f0; color:#334155; padding:6px; border-radius:12px; font-size:10px; font-weight:700; cursor:pointer; margin-top:0;">
                 📂 Restore / Import Data (CSV)
               </label>
               <input type="file" id="csv-uploader" accept=".csv" onchange="importCompleteCSV(event)" style="display:none;">
             </div>
+          </div>
 
+          <!-- INI ADALAH HALAMAN PENGATURAN YANG KEMBALI DIMUNCULKAN -->
           <div id="sub-pengaturan-container" class="hidden">
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
               <h4 style="font-size:11px; font-weight:700; margin-bottom:6px;">Produk & Meja</h4>
@@ -882,13 +883,12 @@
               <button class="btn-full btn-secondary" style="margin-top:0; padding:6px; font-size:11px;" onclick="saveNewPin()">Ubah PIN</button>
             </div>
           </div>
+
         </div>
       </div>
-
     </div>
 
     <div class="watermark">App by POLEM</div>
-
   </div>
 
   <!-- Modal Checkout -->
