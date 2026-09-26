@@ -3161,7 +3161,7 @@ let selectedActiveBillId = null;
       const btnAsset = document.getElementById('btn-sub-inventaris');
       const btnSet = document.getElementById('btn-sub-pengaturan');
 
-      // Sembunyikan semua
+      // Sembunyikan semua sub-menu
       if(subLap) subLap.classList.add('hidden');
       if(subAsset) subAsset.classList.add('hidden');
       if(subSet) subSet.classList.add('hidden');
@@ -3170,7 +3170,7 @@ let selectedActiveBillId = null;
       if(btnAsset) btnAsset.classList.remove('active');
       if(btnSet) btnSet.classList.remove('active');
 
-      // Tampilkan yang dipilih
+      // Tampilkan sub-menu yang diklik
       if (sub === 'laporan') {
         if(subLap) subLap.classList.remove('hidden');
         if(btnLap) btnLap.classList.add('active');
