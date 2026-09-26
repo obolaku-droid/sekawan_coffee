@@ -772,12 +772,13 @@
 
         <div id="privasi-content-view" class="hidden">
         
-        <div style="display:flex; gap:4px; background:#e2e8f0; padding:3px; border-radius:10px; margin-bottom:10px;">
+          <div style="display:flex; gap:4px; background:#e2e8f0; padding:3px; border-radius:10px; margin-bottom:10px;">
             <button id="btn-sub-laporan" class="privasi-tab-btn active" onclick="switchPrivasiSub('laporan')">Laporan</button>
             <button id="btn-sub-inventaris" class="privasi-tab-btn" onclick="switchPrivasiSub('inventaris')">Asset Inventaris</button>
             <button id="btn-sub-pengaturan" class="privasi-tab-btn" onclick="switchPrivasiSub('pengaturan')">Pengaturan</button>
           </div>
 
+          <!-- 1. KONTAINER LAPORAN -->
           <div id="sub-laporan-container">
             <div style="display:flex; gap:6px; margin-bottom:8px; background:#f1f5f9; padding:3px; border-radius:8px;">
               <button class="lap-pill active" onclick="setLapPeriod('harian')">Harian</button>
@@ -785,19 +786,6 @@
               <button class="lap-pill" onclick="setLapPeriod('bulanan')">Bulan Ini</button>
               <button class="lap-pill" onclick="setLapPeriod('custom')">Custom 📅</button>
             </div>
-        </div>
-            <!-- HALAMAN INVENTARIS ASET OWNER -->
-          <div id="sub-inventaris-container" class="hidden">
-            <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <h4 style="font-size:11px; font-weight:700;">Daftar Aset & Inventaris Kedai</h4>
-                <button class="btn-full btn-primary" style="width:auto; margin-top:0; padding:4px 10px; font-size:10px;" onclick="openModalAddAsset()">+ Tambah Aset</button>
-              </div>
-              <div id="asset-list-container" style="display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto;">
-                <!-- Daftar aset akan muncul di sini -->
-              </div>
-            </div>
-          </div>
             
             <div id="custom-date-filter" style="display:none; gap:6px; margin-bottom:10px;">
               <input type="date" id="date-start" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
@@ -805,10 +793,9 @@
               <input type="date" id="date-end" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
               <button onclick="renderReports()" style="background:var(--primary); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:10px; font-weight:bold;">Cek</button>
             </div>
-
+     
             <!-- Omzet Utama & Trend Growth -->
             <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-              
               <div style="position:relative; z-index:10;">
                 <div style="font-size:11px; opacity:0.9;" id="lap-title-omzet">Total Omzet Penjualan</div>
                 <div style="display:flex; align-items:center; gap:10px; margin:4px 0 8px 0;">
@@ -847,9 +834,7 @@
               </div>
               <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 <div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:6px;">TOP 3 MENU</div>
-                <div id="lap-top-menu" style="font-size:10px; display:flex; flex-direction:column; gap:3px;">
-                  - Belum ada data
-                </div>
+                <div id="lap-top-menu" style="font-size:10px; display:flex; flex-direction:column; gap:3px;">- Belum ada data</div>
               </div>
             </div>
 
@@ -864,15 +849,27 @@
 
             <div style="margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px;">
               <button class="btn-full btn-secondary" style="padding:6px; font-size:10px; margin-bottom:8px;" onclick="exportCompleteCSV()">Download Full Backup (CSV)</button>
-              
-              <label for="csv-uploader" class="btn-full" style="display:block; text-align:center; background:#e2e8f0; color:#334155; padding:6px; border-radius:12px; font-size:10px; font-weight:700; cursor:pointer; margin-top:0;">
-                📂 Restore / Import Data (CSV)
-              </label>
+              <label for="csv-uploader" class="btn-full" style="display:block; text-align:center; background:#e2e8f0; color:#334155; padding:6px; border-radius:12px; font-size:10px; font-weight:700; cursor:pointer; margin-top:0;">📂 Restore / Import Data (CSV)</label>
               <input type="file" id="csv-uploader" accept=".csv" onchange="importCompleteCSV(event)" style="display:none;">
             </div>
           </div>
 
-          <!-- INI ADALAH HALAMAN PENGATURAN YANG KEMBALI DIMUNCULKAN -->
+
+          <!-- 2. HALAMAN INVENTARIS ASET OWNER -->
+          <div id="sub-inventaris-container" class="hidden">
+            <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4 style="font-size:11px; font-weight:700;">Daftar Aset & Inventaris Kedai</h4>
+                <button class="btn-full btn-primary" style="width:auto; margin-top:0; padding:4px 10px; font-size:10px;" onclick="openModalAddAsset()">+ Tambah Aset</button>
+              </div>
+              <div id="asset-list-container" style="display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto;">
+                <!-- Daftar aset akan muncul di sini -->
+              </div>
+            </div>
+          </div>
+          
+
+          <!-- 3. INI ADALAH HALAMAN PENGATURAN YANG KEMBALI DIMUNCULKAN -->
           <div id="sub-pengaturan-container" class="hidden">
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
               <h4 style="font-size:11px; font-weight:700; margin-bottom:6px;">Produk & Meja</h4>
@@ -881,7 +878,6 @@
               <button class="btn-full btn-secondary" style="margin-top:6px; padding:6px; font-size:11px; background:#fef3c7; color:#92400e;" onclick="restoreFullCatalog()">Pulihkan Katalog Menu</button>
             </div>
             
-
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
               <label style="font-size:10px; font-weight:700; color:var(--text-muted);">NAMA TOKO</label>
               <input type="text" id="setting-store-name" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; margin-top:2px; margin-bottom:8px;">
@@ -893,15 +889,16 @@
                 </div>
                 <input type="file" id="setting-logo-file" accept="image/*" onchange="handleLogoUpload(event)" style="font-size:10px; flex:1;">
               </div>
-              
               <button class="btn-full btn-primary" style="margin-top:0; padding:6px; font-size:11px;" onclick="saveStoreSettings()">Simpan Profil</button>
             </div>
 
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
-          <label style="font-size:10px; font-weight:700; color:var(--text-muted);">GANTI PIN OWNER</label>
-          <input type="password" id="setting-new-pin" placeholder="PIN Baru" maxlength="6" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; margin-top:2px; margin-bottom:6px;">
-          <button class="btn-full btn-secondary" style="margin-top:0; padding:6px; font-size:11px;" onclick="saveNewPin()">Ubah PIN</button>
+              <label style="font-size:10px; font-weight:700; color:var(--text-muted);">GANTI PIN OWNER</label>
+              <input type="password" id="setting-new-pin" placeholder="PIN Baru" maxlength="6" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; margin-top:2px; margin-bottom:6px;">
+              <button class="btn-full btn-secondary" style="margin-top:0; padding:6px; font-size:11px;" onclick="saveNewPin()">Ubah PIN</button>
             </div>
+          </div>
+
         </div>
       </div>
 
