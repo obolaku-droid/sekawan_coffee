@@ -1080,6 +1080,11 @@
         <label style="font-size:10px; font-weight:600;">Harga Tunggal (Opsional)</label>
         <input type="text" id="new-prod-price-single" placeholder="Contoh: 15.000" oninput="formatRupiahInput(this)" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
       </div>
+      
+      <div style="margin-bottom:8px;">
+        <label style="font-size:10px; font-weight:600; color:var(--danger);">Modal / HPP Dasar (Rp)</label>
+        <input type="text" id="new-prod-cost" placeholder="Contoh: 5.000" oninput="formatRupiahInput(this)" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; font-weight:bold;">
+      </div>
 
       <div style="margin-bottom:10px;">
         <label style="font-size:10px; font-weight:600;">Atau Harga Hot / Ice</label>
@@ -1767,14 +1772,16 @@
       const pSingle = parseNumeric(document.getElementById('new-prod-price-single').value);
       const pHot = parseNumeric(document.getElementById('new-prod-price-hot').value);
       const pIce = parseNumeric(document.getElementById('new-prod-price-ice').value);
+      const costPrice = parseNumeric(document.getElementById('new-prod-cost').value);
+      
       if (!name) { notify('Nama wajib diisi'); return; }
 
       const variants = [];
       const baseId = 'prod_' + Date.now();
-      if (pSingle > 0) variants.push({ id: baseId + '_reg', name: 'Regular', price: pSingle });
+      if (pSingle > 0) variants.push({ id: baseId + '_reg', name: 'Regular', price: pSingle, cost: costPrice });
       else {
-        if (pHot > 0) variants.push({ id: baseId + '_h', name: 'Hot', price: pHot });
-        if (pIce > 0) variants.push({ id: baseId + '_c', name: 'Ice', price: pIce });
+        if (pHot > 0) variants.push({ id: baseId + '_h', name: 'Hot', price: pHot, cost: costPrice });
+        if (pIce > 0) variants.push({ id: baseId + '_c', name: 'Ice', price: pIce, cost: costPrice });
       }
       if (variants.length === 0) { notify('Masukkan harga'); return; }
 
@@ -1787,7 +1794,7 @@
         catch (err) { console.error('Sync prod err:', err); }
       }
       
-      closeModalAddProduct(); renderProducts(); notify('Menu ditambahkan & disinkronkan');
+      closeModalAddProduct(); renderProducts(); notify('Menu & HPP ditambahkan ke Cloud');
     }
 
     function openModalAddTable() {
@@ -2644,6 +2651,20 @@ function printPreorder() {
       const currOmzet = currTx.reduce((acc, t) => acc + t.total, 0);
       const prevOmzet = prevTx.reduce((acc, t) => acc + t.total, 0);
 
+      // --- PERHITUNGAN TOTAL HPP (MODAL BAHAN) ---
+      let currTotalHpp = 0;
+      currTx.forEach(t => {
+        t.items.forEach(i => {
+          // Cari data HPP berdasarkan varian produk yang terjual
+          let unitCost = 0;
+          for (const p of products) {
+            const v = p.variants.find(va => va.name.toLowerCase() === i.name.toLowerCase() || p.name.toLowerCase() === i.name.toLowerCase());
+            if (v && v.cost) { unitCost = v.cost; break; }
+          }
+          currTotalHpp += (unitCost * i.qty);
+        });
+      });
+
       let trendHTML = '';
       if (currentLapPeriod === 'custom') {
           trendHTML = `<span style="color:#e2e8f0;">🔍 Mode Custom</span>`;
@@ -2674,9 +2695,12 @@ function printPreorder() {
       const topItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
       let topMenuHTML = topItems.length === 0 ? '- Belum ada penjualan' : topItems.map((item, idx) => `<div><strong>${idx+1}.</strong> ${item[0]} (${item[1]}x)</div>`).join('');
 
+      const labaKotor = currOmzet - currTotalHpp;
+      const labaBersihFinal = labaKotor - currKas;
+
       document.getElementById('lap-omzet').textContent = formatRp(currOmzet);
       document.getElementById('lap-count').textContent = currTx.length;
-      document.getElementById('lap-laba').textContent = formatRp(currOmzet - currKas);
+      document.getElementById('lap-laba').textContent = formatRp(labaBersihFinal);
       document.getElementById('lap-tunai').textContent = formatRp(sumTunai);
       document.getElementById('lap-qris').textContent = formatRp(sumQris);
       document.getElementById('lap-kas').textContent = formatRp(currKas);
