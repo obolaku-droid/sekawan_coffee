@@ -1775,20 +1775,7 @@
       } else { notify('PIN Salah!'); }
     }
 
-    function switchPrivasiSub(sub) {
-      const subLap = document.getElementById('sub-laporan-container');
-      const subSet = document.getElementById('sub-pengaturan-container');
-      const btnLap = document.getElementById('btn-sub-laporan');
-      const btnSet = document.getElementById('btn-sub-pengaturan');
-      if (sub === 'laporan') {
-        subLap.classList.remove('hidden'); subSet.classList.add('hidden');
-        btnLap.classList.add('active'); btnSet.classList.remove('active');
-        renderReports();
-      } else {
-        subLap.classList.add('hidden'); subSet.classList.remove('hidden');
-        btnLap.classList.remove('active'); btnSet.classList.add('active');
-      }
-    }
+    
 
     async function saveStoreSettings() {
       const name = document.getElementById('setting-store-name').value.trim();
