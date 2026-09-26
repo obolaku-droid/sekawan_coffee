@@ -783,8 +783,16 @@
               <button class="lap-pill" onclick="setLapPeriod('bulanan')">Bulan Ini</button>
               <button class="lap-pill" onclick="setLapPeriod('custom')">Custom 📅</button>
             </div>
+            
+            <div id="custom-date-filter" style="display:none; gap:6px; margin-bottom:10px;">
+              <input type="date" id="date-start" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
+              <span style="font-size:10px; padding-top:8px;">s/d</span>
+              <input type="date" id="date-end" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
+              <button onclick="renderReports()" style="background:var(--primary); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:10px; font-weight:bold;">Cek</button>
+            </div>
+            </div>
 
-            <!-- HALAMAN INVENTARIS ASET OWNER -->
+          <!-- 2. HALAMAN INVENTARIS (Dipindah ke luar sini, sejajar dengan laporan & pengaturan) -->
           <div id="sub-inventaris-container" class="hidden">
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -796,13 +804,11 @@
               </div>
             </div>
           </div>
-            
-            <div id="custom-date-filter" style="display:none; gap:6px; margin-bottom:10px;">
-              <input type="date" id="date-start" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
-              <span style="font-size:10px; padding-top:8px;">s/d</span>
-              <input type="date" id="date-end" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
-              <button onclick="renderReports()" style="background:var(--primary); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:10px; font-weight:bold;">Cek</button>
-            </div>
+
+          <!-- 3. HALAMAN PENGATURAN -->
+          <div id="sub-pengaturan-container" class="hidden">
+            <!-- (Isi pengaturan) -->
+          </div>
 
             <!-- Omzet Utama & Trend Growth -->
             <div style="position:relative; overflow:hidden; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius:14px; padding:16px; color:white; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
