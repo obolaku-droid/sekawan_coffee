@@ -1772,7 +1772,10 @@
       const pSingle = parseNumeric(document.getElementById('new-prod-price-single').value);
       const pHot = parseNumeric(document.getElementById('new-prod-price-hot').value);
       const pIce = parseNumeric(document.getElementById('new-prod-price-ice').value);
-      const costPrice = parseNumeric(document.getElementById('new-prod-cost').value);
+      
+      // Mengambil nilai HPP secara opsional (jika kosong, bernilai 0)
+      const costPriceInput = document.getElementById('new-prod-cost').value;
+      const costPrice = costPriceInput ? parseNumeric(costPriceInput) : 0;
       
       if (!name) { notify('Nama wajib diisi'); return; }
 
@@ -1794,7 +1797,7 @@
         catch (err) { console.error('Sync prod err:', err); }
       }
       
-      closeModalAddProduct(); renderProducts(); notify('Menu & HPP ditambahkan ke Cloud');
+      closeModalAddProduct(); renderProducts(); notify('Menu berhasil disimpan');
     }
 
     function openModalAddTable() {
@@ -2651,11 +2654,10 @@ function printPreorder() {
       const currOmzet = currTx.reduce((acc, t) => acc + t.total, 0);
       const prevOmzet = prevTx.reduce((acc, t) => acc + t.total, 0);
 
-      // --- PERHITUNGAN TOTAL HPP (MODAL BAHAN) ---
+      // --- PERHITUNGAN TOTAL HPP (OPSIONAL) ---
       let currTotalHpp = 0;
       currTx.forEach(t => {
         t.items.forEach(i => {
-          // Cari data HPP berdasarkan varian produk yang terjual
           let unitCost = 0;
           for (const p of products) {
             const v = p.variants.find(va => va.name.toLowerCase() === i.name.toLowerCase() || p.name.toLowerCase() === i.name.toLowerCase());
