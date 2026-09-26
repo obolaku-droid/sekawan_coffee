@@ -3231,7 +3231,21 @@ let selectedActiveBillId = null;
 
     function renderAssets() {
       const container = document.getElementById('asset-list-container');
+      const totalEl = document.getElementById('total-asset-value'); // 👈 Mengambil elemen kotak total
+      
       if (!container) return;
+
+      // 👇 [RUMUS BARU] Hitung total semua aset (Nilai x Jumlah)
+      let totalValue = 0;
+      if (assets && assets.length > 0) {
+        totalValue = assets.reduce((sum, a) => sum + (parseFloat(a.value) * parseInt(a.qty)), 0);
+      }
+      
+      // Update angka pada kotak HTML
+      if (totalEl) {
+        totalEl.textContent = formatRp(totalValue);
+      }
+      // 👆 ==================================================
 
       if (assets.length === 0) {
         container.innerHTML = '<div style="text-align:center; font-size:10px; color:#94a3b8; padding:15px;">Belum ada data inventaris aset.</div>';
@@ -3241,14 +3255,14 @@ let selectedActiveBillId = null;
       container.innerHTML = assets.map(a => {
         let condColor = a.condition === 'Baik' ? 'var(--success)' : (a.condition === 'Rusak' ? 'var(--danger)' : 'var(--warning)');
         return `
-          <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-            <div>
-              <strong style="color:#0f172a; font-size:12px;">${a.name}</strong><br>
-              <span style="color:var(--text-muted); font-size:10px;">Jumlah: <b>${a.qty} unit</b> | Total Nilai: <b>${formatRp(a.value * a.qty)}</b></span><br>
-              <span style="font-size:9px; color:${condColor}; font-weight:bold;">● Kondisi: ${a.condition}</span>
-            </div>
-            <button onclick="deleteAsset('${a.id}')" style="background:#fee2e2; color:var(--danger); border:none; border-radius:6px; padding:4px 8px; font-size:10px; font-weight:bold; cursor:pointer;">Hapus</button>
+        <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+          <div>
+            <strong style="color:#0f172a; font-size:12px;">${a.name}</strong><br>
+            <span style="color:var(--text-muted); font-size:10px;">Jumlah: <b>${a.qty}</b> unit | Total Nilai: <b>${formatRp(a.value * a.qty)}</b></span><br>
+            <span style="font-size:9px; color:${condColor}; font-weight:bold;">● Kondisi: ${a.condition}</span>
           </div>
+          <button onclick="deleteAsset('${a.id}')" style="background:#fee2e2; color:var(--danger); border:none; border-radius:6px; padding:4px 8px; font-size:10px; font-weight:bold; cursor:pointer;">Hapus</button>
+        </div>
         `;
       }).join('');
     }
