@@ -1520,9 +1520,17 @@
 
     function checkShiftStatus() {
       const modal = document.getElementById('modal-open-shift');
+      // Cek apakah pengguna sedang berada di dalam tab Area Owner
+      const isPrivasiActive = document.getElementById('tab-privasi').classList.contains('active');
+
       if (!currentShift) {
-        modal.classList.add('show');
-        document.getElementById('shift-time-display-input').value = new Date().toLocaleString('id-ID');
+        document.getElementById('header-shift-info').textContent = `Kasir: -`;
+        
+        // Hanya munculkan pop-up shift secara paksa jika BUKAN di Area Owner
+        if (!isPrivasiActive) {
+          modal.classList.add('show');
+          document.getElementById('shift-time-display-input').value = new Date().toLocaleString('id-ID');
+        }
       } else {
         modal.classList.remove('show');
         document.getElementById('header-shift-info').textContent = `Kasir: ${currentShift.cashier}`;
