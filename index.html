@@ -770,9 +770,9 @@
           </div>
         </div>
 
-        <div id="privasi-content-view" class="hidden">
-          <div style="display:flex; gap:4px; background:#e2e8f0; padding:3px; border-radius:10px; margin-bottom:10px;">
-            <button id="btn-sub-laporan" class="privasi-tab-btn active" onclick="switchPrivasiSub('laporan')">Laporan Cloud</button>
+        <div style="display:flex; gap:4px; background:#e2e8f0; padding:3px; border-radius:10px; margin-bottom:10px;">
+            <button id="btn-sub-laporan" class="privasi-tab-btn active" onclick="switchPrivasiSub('laporan')">Laporan</button>
+            <button id="btn-sub-inventaris" class="privasi-tab-btn" onclick="switchPrivasiSub('inventaris')">Asset Inventaris</button>
             <button id="btn-sub-pengaturan" class="privasi-tab-btn" onclick="switchPrivasiSub('pengaturan')">Pengaturan</button>
           </div>
 
@@ -865,6 +865,18 @@
               <button class="btn-full btn-secondary" style="margin-top:6px; padding:6px; font-size:11px;" onclick="openModalAddTable()">+ Meja Resto</button>
               <button class="btn-full btn-secondary" style="margin-top:6px; padding:6px; font-size:11px; background:#fef3c7; color:#92400e;" onclick="restoreFullCatalog()">Pulihkan Katalog Menu</button>
             </div>
+            <!-- INI ADALAH HALAMAN INVENTARIS ASET -->
+          <div id="sub-inventaris-container" class="hidden">
+            <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4 style="font-size:11px; font-weight:700;">Daftar Aset & Inventaris</h4>
+                <button class="btn-full btn-primary" style="width:auto; margin-top:0; padding:4px 10px; font-size:10px;" onclick="openModalAddAsset()">+ Tambah Aset</button>
+              </div>
+              <div id="asset-list-container" style="display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto;">
+                <!-- Daftar aset akan dirender di sini -->
+              </div>
+            </div>
+          </div>
 
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
               <label style="font-size:10px; font-weight:700; color:var(--text-muted);">NAMA TOKO</label>
@@ -1116,6 +1128,43 @@
     </div>
   </div>
 
+  <!-- Modal Tambah Aset Inventaris -->
+  <div id="modal-add-asset" class="modal-overlay">
+    <div class="modal-sheet" style="max-width: 320px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:10px;">
+        <h3 style="font-size:13px; font-weight:700;">Tambah Aset Baru</h3>
+        <button onclick="closeModalAddAsset()" style="background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer;">&times;</button>
+      </div>
+      
+      <div style="margin-bottom:8px;">
+        <label style="font-size:10px; font-weight:600;">Nama Barang / Aset</label>
+        <input type="text" id="asset-name" placeholder="Contoh: Mesin Espresso Fiamma..." style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label style="font-size:10px; font-weight:600;">Jumlah / Unit</label>
+        <input type="number" id="asset-qty" placeholder="1" value="1" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label style="font-size:10px; font-weight:600;">Estimasi Nilai / Harga Beli (Rp)</label>
+        <input type="text" id="asset-value" placeholder="Contoh: 15.000.000" oninput="formatRupiahInput(this)" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; font-weight:bold;">
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; font-weight:600;">Kondisi Aset</label>
+        <select id="asset-condition" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px;">
+          <option value="Baik">Baik / Layak Pakai</option>
+          <option value="Perlu Perawatan">Perlu Perawatan / Servis</option>
+          <option value="Rusak">Rusak</option>
+        </select>
+      </div>
+
+      <button class="btn-full btn-primary" onclick="saveNewAsset()" style="padding:8px;">Simpan Aset</button>
+      <button class="btn-full btn-secondary" onclick="closeModalAddAsset()" style="padding:8px;">Batal</button>
+    </div>
+  </div>
+
   <!-- Modal Close Shift -->
   <div id="modal-close-shift" class="modal-overlay">
     <div class="modal-sheet" style="text-align:center;">
@@ -1268,6 +1317,18 @@
           if (data.maxTableNumber) { maxTableNumber = data.maxTableNumber; localStorage.setItem('moka_max_table', maxTableNumber); if (document.getElementById('tab-meja').classList.contains('active')) renderMeja(); }
           if (data.categories) { categories = data.categories; localStorage.setItem('moka_categories', JSON.stringify(categories)); renderCategoriesBar(); }
           if (data.products) { products = data.products; localStorage.setItem('moka_p', JSON.stringify(products)); renderProducts(); }
+
+          if (data.products) { products = data.products; localStorage.setItem('moka_p', JSON.stringify(products)); renderProducts(); }
+          
+          // ---> PASTE KODE ASET DI SINI <---
+          if (data.assets) { 
+            assets = data.assets; 
+            localStorage.setItem('moka_assets', JSON.stringify(assets)); 
+            const assetContainer = document.getElementById('sub-inventaris-container');
+            if (assetContainer && !assetContainer.classList.contains('hidden')) {
+              renderAssets();
+            }
+          }
           
           // --- SINKRONISASI SHIFT KASIR KE CLOUD ---
           if (data.activeShift !== undefined) {
@@ -3062,6 +3123,127 @@ let selectedActiveBillId = null;
       const waNumber = "62811683130"; 
       const message = "Halo Kak POLEM, saya ingin bertanya mengenai aplikasi POS Coffee by POLEM yang sedang saya gunakan.";
       window.open(`https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(message)}`, '_blank');
+    }
+
+    // Variabel state untuk menyimpan data aset
+    let assets = JSON.parse(localStorage.getItem('moka_assets')) || [];
+
+    // Fungsi untuk memperbarui fungsi switch sub-menu di Area Owner
+    function switchPrivasiSub(sub) {
+      const subLap = document.getElementById('sub-laporan-container');
+      const subAsset = document.getElementById('sub-inventaris-container');
+      const subSet = document.getElementById('sub-pengaturan-container');
+      
+      const btnLap = document.getElementById('btn-sub-laporan');
+      const btnAsset = document.getElementById('btn-sub-inventaris');
+      const btnSet = document.getElementById('btn-sub-pengaturan');
+
+      // Sembunyikan semua
+      if(subLap) subLap.classList.add('hidden');
+      if(subAsset) subAsset.classList.add('hidden');
+      if(subSet) subSet.classList.add('hidden');
+      
+      if(btnLap) btnLap.classList.remove('active');
+      if(btnAsset) btnAsset.classList.remove('active');
+      if(btnSet) btnSet.classList.remove('active');
+
+      // Tampilkan yang dipilih
+      if (sub === 'laporan') {
+        if(subLap) subLap.classList.remove('hidden');
+        if(btnLap) btnLap.classList.add('active');
+        renderReports();
+      } else if (sub === 'inventaris') {
+        if(subAsset) subAsset.classList.remove('hidden');
+        if(btnAsset) btnAsset.classList.add('active');
+        renderAssets();
+      } else if (sub === 'pengaturan') {
+        if(subSet) subSet.classList.remove('hidden');
+        if(btnSet) btnSet.classList.add('active');
+      }
+    }
+
+    function openModalAddAsset() {
+      document.getElementById('asset-name').value = '';
+      document.getElementById('asset-qty').value = '1';
+      document.getElementById('asset-value').value = '';
+      document.getElementById('modal-add-asset').classList.add('show');
+    }
+
+    function closeModalAddAsset() {
+      document.getElementById('modal-add-asset').classList.remove('show');
+    }
+
+    async function saveNewAsset() {
+      const name = document.getElementById('asset-name').value.trim();
+      const qty = Number(document.getElementById('asset-qty').value) || 1;
+      const value = parseNumeric(document.getElementById('asset-value').value);
+      const condition = document.getElementById('asset-condition').value;
+
+      if (!name) { notify('Nama aset wajib diisi!'); return; }
+
+      const newAsset = {
+        id: 'AST-' + Date.now(),
+        name,
+        qty,
+        value,
+        condition,
+        date: new Date().toISOString()
+      };
+
+      assets.unshift(newAsset);
+      localStorage.setItem('moka_assets', JSON.stringify(assets));
+
+      // Sinkronisasi ke Firebase Cloud
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { assets }, { merge: true });
+        } catch (err) { console.error('Sync asset err:', err); }
+      }
+
+      closeModalAddAsset();
+      renderAssets();
+      notify('Aset berhasil disimpan & disinkronkan!');
+    }
+
+    async function deleteAsset(assetId) {
+      if (!confirm('Hapus aset ini dari daftar?')) return;
+      assets = assets.filter(a => a.id !== assetId);
+      localStorage.setItem('moka_assets', JSON.stringify(assets));
+
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { assets }, { merge: true });
+        } catch (err) { console.error('Sync delete asset err:', err); }
+      }
+
+      renderAssets();
+      notify('Aset dihapus');
+    }
+
+    function renderAssets() {
+      const container = document.getElementById('asset-list-container');
+      if (!container) return;
+
+      if (assets.length === 0) {
+        container.innerHTML = '<div style="text-align:center; font-size:10px; color:#94a3b8; padding:15px;">Belum ada data inventaris aset.</div>';
+        return;
+      }
+
+      container.innerHTML = assets.map(a => {
+        let condColor = a.condition === 'Baik' ? 'var(--success)' : (a.condition === 'Rusak' ? 'var(--danger)' : 'var(--warning)');
+        return `
+          <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <div>
+              <strong style="color:#0f172a; font-size:12px;">${a.name}</strong><br>
+              <span style="color:var(--text-muted); font-size:10px;">Jumlah: <b>${a.qty} unit</b> | Total Nilai: <b>${formatRp(a.value * a.qty)}</b></span><br>
+              <span style="font-size:9px; color:${condColor}; font-weight:bold;">● Kondisi: ${a.condition}</span>
+            </div>
+            <button onclick="deleteAsset('${a.id}')" style="background:#fee2e2; color:var(--danger); border:none; border-radius:6px; padding:4px 8px; font-size:10px; font-weight:bold; cursor:pointer;">Hapus</button>
+          </div>
+        `;
+      }).join('');
     }
     
   </script>
