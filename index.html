@@ -783,6 +783,19 @@
               <button class="lap-pill" onclick="setLapPeriod('bulanan')">Bulan Ini</button>
               <button class="lap-pill" onclick="setLapPeriod('custom')">Custom 📅</button>
             </div>
+
+            <!-- HALAMAN INVENTARIS ASET OWNER -->
+          <div id="sub-inventaris-container" class="hidden">
+            <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4 style="font-size:11px; font-weight:700;">Daftar Aset & Inventaris Kedai</h4>
+                <button class="btn-full btn-primary" style="width:auto; margin-top:0; padding:4px 10px; font-size:10px;" onclick="openModalAddAsset()">+ Tambah Aset</button>
+              </div>
+              <div id="asset-list-container" style="display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto;">
+                <!-- Daftar aset akan muncul di sini -->
+              </div>
+            </div>
+          </div>
             
             <div id="custom-date-filter" style="display:none; gap:6px; margin-bottom:10px;">
               <input type="date" id="date-start" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border); font-size:10px;">
@@ -894,18 +907,30 @@
             </div>
 
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px;">
-              <label style="font-size:10px; font-weight:700; color:var(--text-muted);">GANTI PIN OWNER</label>
-              <input type="password" id="setting-new-pin" placeholder="PIN Baru" maxlength="6" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; margin-top:2px; margin-bottom:6px;">
-              <button class="btn-full btn-secondary" style="margin-top:0; padding:6px; font-size:11px;" onclick="saveNewPin()">Ubah PIN</button>
-            </div>
-          </div>
-
+          <label style="font-size:10px; font-weight:700; color:var(--text-muted);">GANTI PIN OWNER</label>
+          <input type="password" id="setting-new-pin" placeholder="PIN Baru" maxlength="6" style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:11px; margin-top:2px; margin-bottom:6px;">
+          <button class="btn-full btn-secondary" style="margin-top:0; padding:6px; font-size:11px;" onclick="saveNewPin()">Ubah PIN</button>
         </div>
       </div>
-    </div>
 
-    <div class="watermark">App by POLEM</div>
+      <!-- INI HALAMAN INVENTARIS ASET OWNER -->
+      <div id="sub-inventaris-container" class="hidden">
+        <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:11px; font-weight:700;">Daftar Aset & Inventaris Kedai</h4>
+            <button class="btn-full btn-primary" style="width:auto; margin-top:0; padding:4px 10px; font-size:10px;" onclick="openModalAddAsset()">+ Tambah Aset</button>
+          </div>
+          <div id="asset-list-container" style="display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto;">
+            <!-- Daftar aset akan muncul di sini -->
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
+</div>
+
+<div class="watermark">App by POLEM</div>
 
   <!-- Modal Lisensi & Kontak -->
   <div id="modal-license" class="modal-overlay">
