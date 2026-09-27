@@ -882,6 +882,7 @@
             <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;">
               <h4 style="font-size:11px; font-weight:700; margin-bottom:6px;">Produk & Meja</h4>
               <button class="btn-full btn-primary" style="margin-top:0; padding:6px; font-size:11px;" onclick="openModalAddProduct()">+ Tambah Menu Baru</button>
+              <button class="btn-full btn-secondary" style="margin-top:6px; padding:6px; font-size:11px; background:#e0f2fe; color:#0369a1; border-color:#bae6fd;" onclick="openModalManageProducts()">✏️ Kelola (Edit / Hapus) Menu</button>
               <button class="btn-full btn-secondary" style="margin-top:6px; padding:6px; font-size:11px;" onclick="openModalAddTable()">+ Meja Resto</button>
               <button class="btn-full btn-secondary" style="margin-top:6px; padding:6px; font-size:11px; background:#fef3c7; color:#92400e;" onclick="restoreFullCatalog()">Pulihkan Katalog Menu</button>
             </div>
@@ -1187,6 +1188,42 @@
     </div>
   </div>
 
+  <!-- MODAL 1: DAFTAR MENU UNTUK DIKELOLA -->
+    <div id="modal-manage-products" class="modal-overlay">
+      <div class="modal-content" style="max-width:350px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:14px; font-weight:800; color:#0f172a;">Kelola Menu Produk</h3>
+          <button onclick="closeModalManageProducts()" style="background:none; border:none; font-size:16px; cursor:pointer;">✖</button>
+        </div>
+        <!-- Daftar produk akan muncul di dalam div ini otomatis -->
+        <div id="manage-product-list" style="display:flex; flex-direction:column; gap:8px; max-height:400px; overflow-y:auto;">
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: FORM EDIT / HAPUS -->
+    <div id="modal-edit-product" class="modal-overlay">
+      <div class="modal-content" style="max-width:350px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:14px; font-weight:800; color:#0f172a;">Ubah Data Menu</h3>
+          <button onclick="closeModalEditProduct()" style="background:none; border:none; font-size:16px; cursor:pointer;">✖</button>
+        </div>
+        
+        <input type="hidden" id="edit-prod-id">
+        
+        <label style="font-size:10px; font-weight:700; color:var(--text-muted);">NAMA MENU</label>
+        <input type="text" id="edit-prod-name" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; margin-top:4px; margin-bottom:10px;">
+        
+        <label style="font-size:10px; font-weight:700; color:var(--text-muted);">HARGA (RP)</label>
+        <input type="number" id="edit-prod-price" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; margin-top:4px; margin-bottom:15px;">
+        
+        <div style="display:flex; gap:10px;">
+          <button class="btn-full btn-primary" onclick="saveEditProduct()" style="flex:1; margin-top:0;">Simpan</button>
+          <button class="btn-full" onclick="deleteProduct()" style="background:#fee2e2; color:var(--danger); flex:1; margin-top:0;">Hapus Menu</button>
+        </div>
+      </div>
+    </div>
+  
   <script>
     const SEKAWAN_MENU_VERSION = 'v10_cloud';
     const INITIAL_CATEGORIES = [
@@ -3265,6 +3302,97 @@ let selectedActiveBillId = null;
         </div>
         `;
       }).join('');
+    }
+
+// ==========================================
+    // FUNGSI KELOLA (EDIT & HAPUS) MENU PRODUK
+    // ==========================================
+    function openModalManageProducts() {
+      const container = document.getElementById('manage-product-list');
+      // Pastikan array products tersedia
+      if (typeof products === 'undefined' || !products || products.length === 0) {
+        container.innerHTML = '<div style="text-align:center; font-size:10px; color:#94a3b8; padding:15px;">Belum ada menu produk.</div>';
+      } else {
+        container.innerHTML = products.map(p => `
+          <div style="border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong style="font-size:12px; color:#0f172a;">${p.name}</strong><br>
+              <span style="font-size:11px; color:var(--primary); font-weight:bold;">${formatRp(p.price)}</span>
+            </div>
+            <button onclick="openModalEditProduct('${p.id}')" style="background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:6px 12px; font-size:10px; font-weight:bold; cursor:pointer;">Edit</button>
+          </div>
+        `).join('');
+      }
+      document.getElementById('modal-manage-products').classList.add('show');
+    }
+
+    function closeModalManageProducts() {
+      document.getElementById('modal-manage-products').classList.remove('show');
+    }
+
+    function openModalEditProduct(id) {
+      const p = products.find(x => x.id === id);
+      if(!p) return;
+      document.getElementById('edit-prod-id').value = p.id;
+      document.getElementById('edit-prod-name').value = p.name;
+      document.getElementById('edit-prod-price').value = p.price;
+      
+      closeModalManageProducts(); // Tutup daftar
+      document.getElementById('modal-edit-product').classList.add('show'); // Buka form edit
+    }
+
+    function closeModalEditProduct() {
+      document.getElementById('modal-edit-product').classList.remove('show');
+      openModalManageProducts(); // Kembali ke pop-up daftar kelola menu
+    }
+
+    async function saveEditProduct() {
+      const id = document.getElementById('edit-prod-id').value;
+      const name = document.getElementById('edit-prod-name').value.trim();
+      const price = parseInt(document.getElementById('edit-prod-price').value);
+
+      if(!name || isNaN(price)) {
+        notify('Nama dan Harga wajib diisi!');
+        return;
+      }
+
+      const index = products.findIndex(x => x.id === id);
+      if (index !== -1) {
+        products[index].name = name;
+        products[index].price = price;
+        
+        // Simpan pembaruan ke Cloud Firebase
+        if (typeof db !== 'undefined' && typeof appId !== 'undefined') {
+          const fm = window.firebaseModules;
+          try {
+            await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { products }, { merge: true });
+          } catch(err) { console.error('Gagal update menu:', err); }
+        }
+        
+        if (typeof renderProducts === 'function') renderProducts(); // Perbarui tampilan kasir
+        closeModalEditProduct();
+        notify('Menu berhasil diubah!');
+      }
+    }
+
+    async function deleteProduct() {
+      const id = document.getElementById('edit-prod-id').value;
+      if(confirm('Yakin ingin menghapus menu ini dari kedai?')) {
+        products = products.filter(x => x.id !== id);
+        
+        // Simpan penghapusan ke Cloud Firebase
+        if (typeof db !== 'undefined' && typeof appId !== 'undefined') {
+          const fm = window.firebaseModules;
+          try {
+            await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { products }, { merge: true });
+          } catch(err) { console.error('Gagal hapus menu:', err); }
+        }
+        
+        if (typeof renderProducts === 'function') renderProducts(); // Perbarui tampilan kasir
+        document.getElementById('modal-edit-product').classList.remove('show');
+        openModalManageProducts(); // Buka ulang daftar menu
+        notify('Menu berhasil dihapus permanen!');
+      }
     }
     
   </script>
