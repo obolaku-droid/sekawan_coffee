@@ -941,57 +941,62 @@
     </div>
   </div>
   
-  <!-- Modal Checkout -->
-  <div id="modal-checkout" class="modal-overlay">
-    <div class="modal-sheet">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:10px;">
-        <h3 style="font-size:13px; font-weight:700;">Konfirmasi Pesanan</h3>
-        <button onclick="closeModalCheckout()" style="background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer;">&times;</button>
-      </div>
-
-      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:8px; margin-bottom:8px;">
-        <div style="font-size:9px; color:var(--text-muted); font-weight:700;">TIPE PESANAN</div>
-        <div id="checkout-order-type-display" style="font-size:12px; font-weight:800; color:#0f172a;">Takeaway</div>
-      </div>
-
-      <div style="margin-bottom:8px;">
-        <label style="font-size:10px; font-weight:600; color:var(--text-muted);">METODE PEMBAYARAN</label>
-        <input type="hidden" id="payment-method-hidden" value="tunai">
-        <div style="display:flex; gap:8px; margin-top:4px;">
-          <button id="btn-method-tunai" onclick="selectPaymentMethod('tunai')" style="flex:1; padding:10px; border-radius:8px; border:2px solid var(--primary); background:var(--primary-light); color:var(--primary); font-size:12px; font-weight:800; cursor:pointer; transition:all 0.2s;">💵 Tunai</button>
-          <button id="btn-method-nontunai" onclick="selectPaymentMethod('nontunai')" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:#f8fafc; color:var(--text-muted); font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s;">📱 QRIS / Transfer</button>
+<!-- MODAL CHECKOUT / PEMBAYARAN -->
+    <div id="modal-checkout" class="modal-overlay">
+      <div class="modal-sheet" style="max-width:380px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:10px;">
+          <h3 style="font-size:13px; font-weight:700;">Konfirmasi & Split Bill Pesanan</h3>
+          <button onclick="closeModalCheckout()" style="background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer;">&times;</button>
         </div>
-      </div>
 
-      <div id="checkout-cart-list" style="margin:8px 0; max-height:100px; overflow-y:auto; border-top:1px dashed var(--border); padding-top:6px; font-size:11px;"></div>
-
-      <div style="display:flex; justify-content:space-between; font-weight:800; font-size:14px; margin:8px 0; border-top:1px dashed var(--border); padding-top:8px;">
-        <span>Total Tagihan:</span>
-        <span id="checkout-bill-total" style="color:var(--primary); font-size:16px;">Rp 0</span>
-      </div>
-
-      <div id="tunai-fields-container" style="margin:8px 0;">
-        <div style="display:flex; gap:6px; margin-bottom:8px;">
-           <button onclick="setQuickCash('pas')" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:var(--primary); cursor:pointer;">Uang Pas</button>
-           <button onclick="setQuickCash(20000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:#334155; cursor:pointer;">20rb</button>
-           <button onclick="setQuickCash(50000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:#334155; cursor:pointer;">50rb</button>
-           <button onclick="setQuickCash(100000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; color:#334155; cursor:pointer;">100rb</button>
+        <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:8px; margin-bottom:10px;">
+          <div style="font-size:9px; color:var(--text-muted); font-weight:700;">TIPE PESANAN</div>
+          <div id="checkout-order-type-display" style="font-size:12px; font-weight:800; color:#0f172a;">Takeaway</div>
         </div>
-        <input type="text" id="cash-given-input" placeholder="Uang Diterima (Rp)" oninput="formatRupiahInput(this); calcChange();" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); font-size:14px; font-weight:800; text-align:right;">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-top:8px; background:#f8fafc; padding:8px 12px; border-radius:8px; font-weight:bold;">
-          <span>Kembalian:</span>
-          <strong id="change-display" style="color:var(--success); font-size:15px;">Rp 0</strong>
-        </div>
-      </div>
 
-      <div style="display:flex; gap:6px; margin-top:10px;">
-        <button class="btn-full btn-secondary" style="margin-top:0; padding:8px;" onclick="saveActiveOrder()">Simpan Meja</button>
-        <button class="btn-full btn-primary" style="margin-top:0; padding:8px;" onclick="confirmPayment()">Bayar Lunas</button>
+        <div style="font-size:11px; font-weight:bold; margin-bottom:6px;">Pilih Menu yang Dibayar (Split Bill):</div>
+        <!-- Kotak Checkbox untuk Split Bill -->
+        <div id="split-bill-items-container" style="max-height:120px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:6px; margin-bottom:10px; background:#f8fafc;">
+          <!-- Diisi otomatis oleh JavaScript -->
+        </div>
+
+        <div style="margin-bottom:8px;">
+          <label style="font-size:10px; font-weight:600; color:var(--text-muted);">METODE PEMBAYARAN</label>
+          <input type="hidden" id="payment-method-hidden" value="tunai">
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <button id="btn-method-tunai" class="btn-full btn-primary" onclick="selectPaymentMethod('tunai')" style="flex:1; padding:10px; border-radius:8px; font-size:12px; cursor:pointer;">💵 Tunai</button>
+            <button id="btn-method-nontunai" class="btn-full btn-secondary" onclick="selectPaymentMethod('nontunai')" style="flex:1; padding:10px; border-radius:8px; font-size:12px; cursor:pointer;">📱 QRIS / Transfer</button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:14px; margin:8px 0; border-top:1px dashed var(--border); padding-top:8px;">
+          <span>Total Tagihan Dipilih:</span>
+          <span id="checkout-bill-total" style="color:var(--primary); font-size:16px;">Rp 0</span>
+        </div>
+
+        <div id="tunai-fields-container" style="margin:8px 0;">
+          <div style="display:flex; gap:6px; margin-bottom:8px;">
+            <button onclick="setQuickCash('pas')" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; cursor:pointer;">Uang Pas</button>
+            <button onclick="setQuickCash(20000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; cursor:pointer;">20rb</button>
+            <button onclick="setQuickCash(50000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; cursor:pointer;">50rb</button>
+            <button onclick="setQuickCash(100000)" style="flex:1; padding:6px; border:1px solid var(--border); border-radius:8px; background:white; font-size:10px; font-weight:700; cursor:pointer;">100rb</button>
+          </div>
+          <input type="text" id="cash-given-input" placeholder="Uang Diterima (Rp)" oninput="formatRupiahInput(this); calcChange();" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); font-size:14px; font-weight:bold; text-align:right;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; background:#f8fafc; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold;">
+            <span>Kembalian:</span>
+            <strong id="change-display" style="color:var(--success); font-size:15px;">Rp 0</strong>
+          </div>
+        </div>
+
+        <!-- TOMBOL AKSI: SIMPAN MEJA & PROSES PEMBAYARAN -->
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          <button class="btn-full btn-secondary" style="margin-top:0; padding:8px; font-size:11px;" onclick="saveActiveOrder()">Simpan Meja</button>
+          <button class="btn-full btn-primary" style="margin-top:0; padding:8px; font-size:11px;" onclick="confirmPayment()">Proses Pembayaran</button>
+        </div>
+        
+        <div style="margin-top:8px; font-size:9px; color:var(--text-muted); text-align:center;">App by POLEM</div>
       </div>
-      <div style="margin-top:8px; font-size:9px; color:var(--text-muted); text-align:center;">App by POLEM</div>
     </div>
-  </div>
-
   <!-- Modal Success Receipt -->
   <div id="modal-success" class="modal-overlay">
     <div class="modal-sheet" style="text-align:center;">
@@ -2212,94 +2217,100 @@
       updateKasirView(); updateCartDisplay(); renderProducts(); switchTab('kasir');
     }
 
+    // 1. Membuka Modal Checkout dengan Checkbox Split Bill
     function openModalCheckout() {
-      const { sum } = calculateCartTotal();
-      if (sum === 0) return;
-      document.getElementById('checkout-cart-list').innerHTML = Object.entries(cart).map(([varId, qty]) => {
+      const sum = calculateCartTotal();
+      if (sum === 0) {
+        notify('Keranjang masih kosong!');
+        return;
+      }
+
+      let htmlItems = '';
+      Object.entries(cart).forEach(([varId, qty]) => {
         const d = getVariantDetails(varId);
-        return `<div style="display:flex; justify-content:space-between;"><span>${d.p.name} x${qty}</span><strong>${formatRp(d.v.price * qty)}</strong></div>`;
-      }).join('');
-      document.getElementById('checkout-bill-total').textContent = formatRp(sum);
-      
+        const subtotal = d.v.price * qty;
+        htmlItems += `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:11px; background:white; padding:4px 6px; border-radius:4px; border:1px solid var(--border);">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; flex:1;">
+              <input type="checkbox" class="split-checkbox" value="${varId}" data-price="${d.v.price}" data-maxqty="${qty}" checked onchange="updateSplitTotal()">
+              <span>${d.p.name} (${qty}x)</span>
+            </label>
+            <strong style="color:var(--text);">${formatRp(subtotal)}</strong>
+          </div>`;
+      });
+
+      document.getElementById('split-bill-items-container').innerHTML = htmlItems;
       selectPaymentMethod('tunai');
-      document.getElementById('cash-given-input').value = sum.toLocaleString('id-ID');
-      calcChange();
-      
-      document.getElementById('checkout-order-type-display').textContent = orderType === 'dine_in' ? `Meja ${orderTable}` : 'Takeaway';
+      updateSplitTotal();
+
+      document.getElementById('checkout-order-type-display').textContent = orderType === 'dine_in' ? `Meja: ${orderTable}` : 'Takeaway';
       document.getElementById('modal-checkout').classList.add('show');
     }
 
-    function selectPaymentMethod(method) {
-      document.getElementById('payment-method-hidden').value = method;
-      const btnTunai = document.getElementById('btn-method-tunai');
-      const btnNontunai = document.getElementById('btn-method-nontunai');
-      const tunaiFields = document.getElementById('tunai-fields-container');
+    // 2. Menghitung ulang total tagihan berdasarkan item yang dicentang
+    function updateSplitTotal() {
+      const checkboxes = document.querySelectorAll('.split-checkbox');
+      let total = 0;
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          const price = Number(cb.getAttribute('data-price'));
+          const maxQty = Number(cb.getAttribute('data-maxqty'));
+          total += price * maxQty;
+        }
+      });
 
-      if (method === 'tunai') {
-        btnTunai.style.background = 'var(--primary-light)'; btnTunai.style.color = 'var(--primary)'; btnTunai.style.border = '2px solid var(--primary)';
-        btnNontunai.style.background = '#f8fafc'; btnNontunai.style.color = 'var(--text-muted)'; btnNontunai.style.border = '1px solid var(--border)';
-        tunaiFields.style.display = 'block';
-      } else {
-        btnNontunai.style.background = 'var(--primary-light)'; btnNontunai.style.color = 'var(--primary)'; btnNontunai.style.border = '2px solid var(--primary)';
-        btnTunai.style.background = '#f8fafc'; btnTunai.style.color = 'var(--text-muted)'; btnTunai.style.border = '1px solid var(--border)';
-        tunaiFields.style.display = 'none';
-      }
-    }
-
-    function setQuickCash(amount) {
-      const { sum } = calculateCartTotal();
+      document.getElementById('checkout-bill-total').textContent = formatRp(total);
       const cashInput = document.getElementById('cash-given-input');
-      if (amount === 'pas') cashInput.value = sum.toLocaleString('id-ID');
-      else cashInput.value = amount.toLocaleString('id-ID');
+      cashInput.value = total.toLocaleString('id-ID');
       calcChange();
     }
 
-    function closeModalCheckout() { document.getElementById('modal-checkout').classList.remove('show'); }
-    
+    // 3. Fungsi Hitung Kembalian
     function calcChange() {
-      const { sum } = calculateCartTotal();
+      const checkboxes = document.querySelectorAll('.split-checkbox');
+      let total = 0;
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          total += Number(cb.getAttribute('data-price')) * Number(cb.getAttribute('data-maxqty'));
+        }
+      });
+
       const cash = parseNumeric(document.getElementById('cash-given-input').value);
-      document.getElementById('change-display').textContent = formatRp(Math.max(0, cash - sum));
+      document.getElementById('change-display').textContent = formatRp(Math.max(0, cash - total));
     }
 
-    async function saveActiveOrder() {
-      const { sum } = calculateCartTotal();
-      if (sum === 0) return;
-      const newBill = { id: currentBillId || 'BILL-' + Date.now(), type: orderType, table: orderTable, cartData: { ...cart }, total: sum, date: new Date().toISOString() };
-      
-      if (db && appId) {
-        const fm = window.firebaseModules;
-        try {
-          const existingBill = activeBills.find(b => b.id === newBill.id);
-          if (existingBill && existingBill.firestoreId) {
-            const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', existingBill.firestoreId);
-            await fm.setDoc(docRef, newBill);
-          } else {
-            await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills'), newBill);
-          }
-        } catch (err) { console.error('Simpan meja err:', err); }
-      } else {
-        const idx = activeBills.findIndex(b => b.id === newBill.id);
-        if (idx >= 0) activeBills[idx] = newBill; else activeBills.push(newBill);
-      }
-      
-      closeModalCheckout(); resetCartAndSession(); updateBadgeMeja(); switchTab('meja');
-    }
-
+    // 4. Konfirmasi Pembayaran & Pembaruan Sisa Split Bill di Meja
     async function confirmPayment() {
-      const sum = calculateCartTotal();
+      const checkboxes = document.querySelectorAll('.split-checkbox');
+      let paidCart = {};
+      let sum = 0;
+
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          const varId = cb.value;
+          const qty = Number(cb.getAttribute('data-maxqty'));
+          paidCart[varId] = qty;
+          sum += Number(cb.getAttribute('data-price')) * qty;
+        }
+      });
+
+      if (sum === 0) {
+        notify('Pilih minimal 1 menu yang akan dibayar!');
+        return;
+      }
+
       const method = document.getElementById('payment-method-hidden').value;
       let cash = sum;
       let change = 0;
 
       if (method === 'tunai') {
         cash = parseNumeric(document.getElementById('cash-given-input').value);
-        if (cash < sum) { notify('Uang kurang!'); return; }
+        if (cash < sum) { notify('Uang tunai kurang!'); return; }
         change = cash - sum;
       }
 
       const txId = 'TRX-' + String(transactions.length + 1).padStart(3, '0');
-      const itemsList = Object.entries(cart).map(([varId, qty]) => {
+      const itemsList = Object.entries(paidCart).map(([varId, qty]) => {
         const d = getVariantDetails(varId);
         return { name: d.p.name, price: d.v.price, qty: qty };
       });
@@ -2319,18 +2330,16 @@
       await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
 
-      // LOGIKA SPLIT BILL / PEMBAYARAN MEJA
       if (currentBillId) {
         const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId);
         if (existingBillIndex >= 0) {
           const targetBill = activeBills[existingBillIndex];
           
-          // Kurangi item di bill asli dengan item yang dibayar saat ini
-          for (const [varId, paidQty] of Object.entries(cart)) {
+          for (const [varId, paidQty] of Object.entries(paidCart)) {
             if (targetBill.cartData[varId]) {
               targetBill.cartData[varId] -= paidQty;
               if (targetBill.cartData[varId] <= 0) {
-                delete targetBill.cartData[varId]; // Hapus jika sudah lunas
+                delete targetBill.cartData[varId]; 
               }
             }
           }
@@ -2342,7 +2351,6 @@
             const billFirestoreId = currentFirestoreId || targetBill.firestoreId;
 
             if (remainingItemsCount === 0) {
-              // Jika semua item sudah lunas, hapus bill dari database & aktif
               if (billFirestoreId) {
                 try {
                   await fm.deleteDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId));
@@ -2350,7 +2358,6 @@
               }
               activeBills.splice(existingBillIndex, 1);
             } else {
-              // Jika masih ada sisa item (Split Bill), update data sisa ke database
               targetBill.total = Object.entries(targetBill.cartData).reduce((acc, [vId, q]) => {
                 const det = getVariantDetails(vId);
                 return acc + (det.v.price * q);
@@ -2363,7 +2370,6 @@
               }
             }
           } else {
-            // Mode Lokal
             if (remainingItemsCount === 0) {
               activeBills.splice(existingBillIndex, 1);
             } else {
@@ -2381,7 +2387,6 @@
       updateBadgeMeja(); 
       switchTab('meja');
       
-      // Buka modal cetak struk
       document.getElementById('receipt-tx-id').textContent = tx.id;
       document.getElementById('receipt-date').textContent = new Date(tx.date).toLocaleString('id-ID');
       document.getElementById('receipt-items').innerHTML = tx.items.map(i => `<div>${i.name} x${i.qty} - ${formatRp(i.price * i.qty)}</div>`).join('');
