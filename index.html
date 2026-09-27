@@ -2247,6 +2247,24 @@
       document.getElementById('modal-checkout').classList.add('show');
     }
 
+// Fungsi untuk memilih metode pembayaran (Tunai / Non-Tunai)
+    function selectPaymentMethod(method) {
+      document.getElementById('payment-method-hidden').value = method;
+      const btnTunai = document.getElementById('btn-method-tunai');
+      const btnNontunai = document.getElementById('btn-method-nontunai');
+      const tunaiFields = document.getElementById('tunai-fields-container');
+
+      if (method === 'tunai') {
+        btnTunai.style.background = 'var(--primary-light)'; btnTunai.style.color = 'var(--primary)'; btnTunai.style.border = '2px solid var(--primary)';
+        btnNontunai.style.background = '#f8fafc'; btnNontunai.style.color = 'var(--text-muted)'; btnNontunai.style.border = '1px solid var(--border)';
+        tunaiFields.style.display = 'block';
+      } else {
+        btnNontunai.style.background = 'var(--primary-light)'; btnNontunai.style.color = 'var(--primary)'; btnNontunai.style.border = '2px solid var(--primary)';
+        btnTunai.style.background = '#f8fafc'; btnTunai.style.color = 'var(--text-muted)'; btnTunai.style.border = '1px solid var(--border)';
+        tunaiFields.style.display = 'none';
+      }
+    }
+    
     // 2. Menghitung ulang total tagihan berdasarkan item yang dicentang
     function updateSplitTotal() {
       const checkboxes = document.querySelectorAll('.split-checkbox');
