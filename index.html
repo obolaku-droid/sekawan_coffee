@@ -2208,7 +2208,7 @@
     function loadBill(billId) {
       const bill = activeBills.find(b => b.id === billId);
       if (!bill) return;
-      cart = { ...bill.cartData }; currentBillId = bill.id; orderType = bill.type; orderTable = bill.table;
+      cart = { ...bill.cartData }; currentBillId = bill.id; currentFirestoreId = bill.firestoreId || null; orderType = bill.type; orderTable = bill.table;
       updateKasirView(); updateCartDisplay(); renderProducts(); switchTab('kasir');
     }
 
@@ -2287,45 +2287,109 @@
     }
 
     async function confirmPayment() {
-      const { sum } = calculateCartTotal();
+      const sum = calculateCartTotal();
       const method = document.getElementById('payment-method-hidden').value;
       let cash = sum;
       let change = 0;
 
       if (method === 'tunai') {
         cash = parseNumeric(document.getElementById('cash-given-input').value);
-        if (cash < sum) { notify('Uang kurang'); return; }
+        if (cash < sum) { notify('Uang kurang!'); return; }
         change = cash - sum;
       }
 
       const txId = 'TRX-' + String(transactions.length + 1).padStart(3, '0');
       const itemsList = Object.entries(cart).map(([varId, qty]) => {
         const d = getVariantDetails(varId);
-        return { name: d.p.name, price: d.v.price, qty };
+        return { name: d.p.name, price: d.v.price, qty: qty };
       });
-      const tx = { id: txId, date: new Date().toISOString(), items: itemsList, total: sum, cash, change, orderType, table: orderTable, paymentMethod: method };
       
+      const tx = { 
+        id: txId, 
+        date: new Date().toISOString(), 
+        items: itemsList, 
+        total: sum, 
+        cash: cash, 
+        change: change, 
+        orderType: orderType, 
+        table: orderTable, 
+        paymentMethod: method 
+      };
+
       await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
 
+      // LOGIKA SPLIT BILL / PEMBAYARAN MEJA
       if (currentBillId) {
-        if (db && appId) {
-          const fm = window.firebaseModules;
-          try {
-            const existingBill = activeBills.find(b => b.id === currentBillId);
-            if (existingBill && existingBill.firestoreId) {
-              const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', existingBill.firestoreId);
-              await fm.deleteDoc(docRef);
+        const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId);
+        if (existingBillIndex >= 0) {
+          const targetBill = activeBills[existingBillIndex];
+          
+          // Kurangi item di bill asli dengan item yang dibayar saat ini
+          for (const [varId, paidQty] of Object.entries(cart)) {
+            if (targetBill.cartData[varId]) {
+              targetBill.cartData[varId] -= paidQty;
+              if (targetBill.cartData[varId] <= 0) {
+                delete targetBill.cartData[varId]; // Hapus jika sudah lunas
+              }
             }
-          } catch (err) { console.error('Hapus meja err:', err); }
-        } else {
-          activeBills = activeBills.filter(b => b.id !== currentBillId);
+          }
+
+          const remainingItemsCount = Object.keys(targetBill.cartData).length;
+          
+          if (db && appId) {
+            const fm = window.firebaseModules;
+            const billFirestoreId = currentFirestoreId || targetBill.firestoreId;
+
+            if (remainingItemsCount === 0) {
+              // Jika semua item sudah lunas, hapus bill dari database & aktif
+              if (billFirestoreId) {
+                try {
+                  await fm.deleteDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId));
+                } catch(e) { console.error('Gagal hapus bill lunas:', e); }
+              }
+              activeBills.splice(existingBillIndex, 1);
+            } else {
+              // Jika masih ada sisa item (Split Bill), update data sisa ke database
+              targetBill.total = Object.entries(targetBill.cartData).reduce((acc, [vId, q]) => {
+                const det = getVariantDetails(vId);
+                return acc + (det.v.price * q);
+              }, 0);
+
+              if (billFirestoreId) {
+                try {
+                  await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId), targetBill, { merge: true });
+                } catch(e) { console.error('Gagal update split bill:', e); }
+              }
+            }
+          } else {
+            // Mode Lokal
+            if (remainingItemsCount === 0) {
+              activeBills.splice(existingBillIndex, 1);
+            } else {
+              targetBill.total = Object.entries(targetBill.cartData).reduce((acc, [vId, q]) => {
+                const det = getVariantDetails(vId);
+                return acc + (det.v.price * q);
+              }, 0);
+            }
+          }
         }
       }
 
-      closeModalCheckout(); resetCartAndSession(); updateBadgeMeja(); showSuccessReceipt(tx);
+      closeModalCheckout();
+      resetCartAndSession();
+      updateBadgeMeja(); 
+      switchTab('meja');
+      
+      // Buka modal cetak struk
+      document.getElementById('receipt-tx-id').textContent = tx.id;
+      document.getElementById('receipt-date').textContent = new Date(tx.date).toLocaleString('id-ID');
+      document.getElementById('receipt-items').innerHTML = tx.items.map(i => `<div>${i.name} x${i.qty} - ${formatRp(i.price * i.qty)}</div>`).join('');
+      document.getElementById('receipt-total').textContent = formatRp(tx.total);
+      document.getElementById('receipt-cash').textContent = formatRp(tx.cash);
+      document.getElementById('receipt-change').textContent = formatRp(tx.change);
+      document.getElementById('modal-receipt').classList.add('show');
     }
-
     function showSuccessReceipt(tx) {
       document.getElementById('receipt-tx-id').textContent = '#' + tx.id;
       document.getElementById('receipt-time-display').textContent = new Date(tx.date).toLocaleString('id-ID');
