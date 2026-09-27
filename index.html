@@ -1916,25 +1916,44 @@
     }
 
     function openModalAddTable() {
-      document.getElementById('new-table-num').value = maxTableNumber + 1;
+      document.getElementById('new-table-name').value = '';
       document.getElementById('modal-add-table').classList.add('show');
     }
-    function closeModalAddTable() { document.getElementById('modal-add-table').classList.remove('show'); }
-    
+
+    function closeModalAddTable() { 
+      document.getElementById('modal-add-table').classList.remove('show'); 
+    }
+
     async function saveNewTable() {
-      const num = Number(document.getElementById('new-table-num').value);
-      if (num > 0) {
-        maxTableNumber = num;
-        localStorage.setItem('moka_max_table', maxTableNumber);
-        
-        if (db && appId) {
-          const fm = window.firebaseModules;
-          try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { maxTableNumber }, { merge: true }); } 
-          catch (err) { console.error('Sync table err:', err); }
-        }
-        
-        closeModalAddTable(); renderMeja(); notify('Meja disinkronkan ke Cloud');
+      const tableName = document.getElementById('new-table-name').value.trim();
+      
+      if (!tableName) {
+        notify('Nama meja tidak boleh kosong!');
+        return;
       }
+
+      // Hindari nama meja yang ganda/sama persis
+      if (customTables.includes(tableName)) {
+        notify('Meja dengan nama ini sudah ada!');
+        return;
+      }
+
+      // Masukkan nama meja baru ke dalam daftar
+      customTables.push(tableName);
+
+      // Simpan daftar meja ini ke Cloud Firebase
+      if (typeof db !== 'undefined' && typeof appId !== 'undefined') {
+        const fm = window.firebaseModules;
+        try {
+          await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { customTables }, { merge: true });
+        } catch (err) { 
+          console.error('Gagal sinkron meja kustom:', err); 
+        }
+      }
+
+      closeModalAddTable();
+      renderMeja(); // Muat ulang kotak-kotak meja di layar
+      notify('Meja khusus berhasil ditambahkan!');
     }
 
     async function restoreFullCatalog() {
