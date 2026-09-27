@@ -2351,11 +2351,13 @@
     }
 
     // 4. Konfirmasi Pembayaran & Pembaruan Sisa Split Bill di Meja
+    // 4. Konfirmasi Pembayaran & Split Bill (Disempurnakan)
     async function confirmPayment() {
       const checkboxes = document.querySelectorAll('.split-checkbox');
       let paidCart = {};
       let sum = 0;
 
+      // 1. Kumpulkan item yang HANYA dicentang
       checkboxes.forEach(cb => {
         if (cb.checked) {
           const varId = cb.value;
@@ -2380,6 +2382,7 @@
         change = cash - sum;
       }
 
+      // 2. Catat transaksi ke laporan
       const txId = 'TRX-' + String(transactions.length + 1).padStart(3, '0');
       const itemsList = Object.entries(paidCart).map(([varId, qty]) => {
         const d = getVariantDetails(varId);
@@ -2401,63 +2404,76 @@
       await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
 
-      if (currentBillId) {
-        const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId);
-        if (existingBillIndex >= 0) {
-          const targetBill = activeBills[existingBillIndex];
-          
-          for (const [varId, paidQty] of Object.entries(paidCart)) {
-            if (targetBill.cartData[varId]) {
-              targetBill.cartData[varId] -= paidQty;
-              if (targetBill.cartData[varId] <= 0) {
-                delete targetBill.cartData[varId]; 
-              }
-            }
+      // 3. LOGIKA SPLIT BILL PADA MEJA (Agar tidak kosong)
+      if (orderType === 'dine_in') {
+        // Cari menu apa saja yang tidak dicentang (Sisa Pesanan)
+        let sisaCart = {};
+        let adaSisa = false;
+        Object.entries(cart).forEach(([varId, qty]) => {
+          let qtyDibayar = paidCart[varId] || 0;
+          if (qty > qtyDibayar) {
+            sisaCart[varId] = qty - qtyDibayar;
+            adaSisa = true;
           }
+        });
 
-          const remainingItemsCount = Object.keys(targetBill.cartData).length;
+        const fm = window.firebaseModules;
+
+        if (adaSisa) {
+          // JIKA ADA SISA: Meja tetap terisi dengan sisa menu
+          const sisaTotal = Object.entries(sisaCart).reduce((acc, [vId, q]) => acc + (getVariantDetails(vId).v.price * q), 0);
           
-          if (db && appId) {
-            const fm = window.firebaseModules;
-            const billFirestoreId = currentFirestoreId || targetBill.firestoreId;
-
-            if (remainingItemsCount === 0) {
-              if (billFirestoreId) {
-                try {
-                  await fm.deleteDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId));
-                } catch(e) { console.error('Gagal hapus bill lunas:', e); }
-              }
-              activeBills.splice(existingBillIndex, 1);
-            } else {
-              targetBill.total = Object.entries(targetBill.cartData).reduce((acc, [vId, q]) => {
-                const det = getVariantDetails(vId);
-                return acc + (det.v.price * q);
-              }, 0);
-
-              if (billFirestoreId) {
-                try {
-                  await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId), targetBill, { merge: true });
-                } catch(e) { console.error('Gagal update split bill:', e); }
+          if (currentBillId) {
+            // Update meja yang sudah ada
+            const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId);
+            if (existingBillIndex >= 0) {
+              let targetBill = activeBills[existingBillIndex];
+              targetBill.cartData = sisaCart;
+              targetBill.total = sisaTotal;
+              
+              if (db && appId) {
+                const billFirestoreId = currentFirestoreId || targetBill.firestoreId;
+                if (billFirestoreId) {
+                  try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId), targetBill, { merge: true }); } catch(e) {}
+                }
               }
             }
           } else {
-            if (remainingItemsCount === 0) {
-              activeBills.splice(existingBillIndex, 1);
+            // Buat data meja baru jika meja tersebut belum pernah di-"Simpan Meja" sebelumnya
+            const newBill = { id: 'BILL-' + Date.now(), type: orderType, table: orderTable, cartData: sisaCart, total: sisaTotal, date: new Date().toISOString() };
+            if (db && appId) {
+              try { await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills'), newBill); } catch(e) {}
             } else {
-              targetBill.total = Object.entries(targetBill.cartData).reduce((acc, [vId, q]) => {
-                const det = getVariantDetails(vId);
-                return acc + (det.v.price * q);
-              }, 0);
+              activeBills.push(newBill);
+            }
+          }
+        } else {
+          // JIKA LUNAS SEMUA: Hapus meja dari daftar
+          if (currentBillId) {
+            const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId);
+            if (existingBillIndex >= 0) {
+              let targetBill = activeBills[existingBillIndex];
+              if (db && appId) {
+                const billFirestoreId = currentFirestoreId || targetBill.firestoreId;
+                if (billFirestoreId) {
+                  try { await fm.deleteDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId)); } catch(e) {}
+                }
+              }
+              activeBills.splice(existingBillIndex, 1);
             }
           }
         }
       }
 
-      closeModalCheckout();
+      // 4. Tutup modal & Reset tampilan (JIKA ERROR TERJADI SEBELUMNYA, BARIS INI GAGAL JALAN)
+      if(typeof closeModalCheckout === 'function') closeModalCheckout();
+      else document.getElementById('modal-checkout').classList.remove('show');
+      
       resetCartAndSession();
       updateBadgeMeja(); 
       switchTab('meja');
       
+      // 5. Tampilkan Struk Pembayaran
       document.getElementById('receipt-tx-id').textContent = tx.id;
       document.getElementById('receipt-date').textContent = new Date(tx.date).toLocaleString('id-ID');
       document.getElementById('receipt-items').innerHTML = tx.items.map(i => `<div>${i.name} x${i.qty} - ${formatRp(i.price * i.qty)}</div>`).join('');
