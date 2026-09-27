@@ -2350,7 +2350,43 @@
       document.getElementById('change-display').textContent = formatRp(Math.max(0, cash - total));
     }
 
-    // 4. Konfirmasi Pembayaran & Pembaruan Sisa Split Bill di Meja
+    // Fungsi untuk Menyimpan Meja (Simpan Pesanan Tanpa Bayar)
+    async function saveActiveOrder() {
+      const sum = calculateCartTotal();
+      if (sum === 0) return;
+      
+      const newBill = { 
+        id: currentBillId || 'BILL-' + Date.now(), 
+        type: orderType, 
+        table: orderTable, 
+        cartData: { ...cart }, 
+        total: sum, 
+        date: new Date().toISOString() 
+      };
+
+      if (db && appId) {
+        const fm = window.firebaseModules;
+        try {
+          const existingBill = activeBills.find(b => b.id === newBill.id);
+          if (existingBill && existingBill.firestoreId) {
+            const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', existingBill.firestoreId);
+            await fm.setDoc(docRef, newBill);
+          } else {
+            await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills'), newBill);
+          }
+        } catch (err) { console.error('Simpan meja err:', err); }
+      } else {
+        const idx = activeBills.findIndex(b => b.id === newBill.id);
+        if (idx >= 0) activeBills[idx] = newBill; else activeBills.push(newBill);
+      }
+
+      if (typeof closeModalCheckout === 'function') closeModalCheckout();
+      else document.getElementById('modal-checkout').classList.remove('show');
+      
+      resetCartAndSession();
+      updateBadgeMeja();
+      switchTab('meja');
+    }
     // 4. Konfirmasi Pembayaran & Split Bill (Disempurnakan)
     async function confirmPayment() {
       const checkboxes = document.querySelectorAll('.split-checkbox');
@@ -2473,14 +2509,23 @@
       updateBadgeMeja(); 
       switchTab('meja');
       
-      // 5. Tampilkan Struk Pembayaran
-      document.getElementById('receipt-tx-id').textContent = tx.id;
-      document.getElementById('receipt-date').textContent = new Date(tx.date).toLocaleString('id-ID');
-      document.getElementById('receipt-items').innerHTML = tx.items.map(i => `<div>${i.name} x${i.qty} - ${formatRp(i.price * i.qty)}</div>`).join('');
-      document.getElementById('receipt-total').textContent = formatRp(tx.total);
-      document.getElementById('receipt-cash').textContent = formatRp(tx.cash);
-      document.getElementById('receipt-change').textContent = formatRp(tx.change);
-      document.getElementById('modal-receipt').classList.add('show');
+      // 5. Tampilkan Struk Pembayaran (Versi Aman)
+      try {
+        if (document.getElementById('receipt-tx-id')) document.getElementById('receipt-tx-id').textContent = tx.id;
+        
+        // Sesuaikan dengan ID struk lama Anda
+        if (document.getElementById('receipt-time-display')) document.getElementById('receipt-time-display').textContent = new Date(tx.date).toLocaleString('id-ID');
+        if (document.getElementById('receipt-items-container')) document.getElementById('receipt-items-container').innerHTML = tx.items.map(i => `<div style="display:flex; justify-content:space-between;"><span>${i.name} x${i.qty}</span><span>${formatRp(i.price * i.qty)}</span></div>`).join('');
+        if (document.getElementById('receipt-sum-total')) document.getElementById('receipt-sum-total').textContent = formatRp(tx.total);
+        if (document.getElementById('receipt-sum-cash')) document.getElementById('receipt-sum-cash').textContent = formatRp(tx.cash);
+        if (document.getElementById('receipt-sum-change')) document.getElementById('receipt-sum-change').textContent = formatRp(tx.change);
+        
+        // Buka modal sukses
+        if (document.getElementById('modal-success')) document.getElementById('modal-success').classList.add('show');
+        else if (document.getElementById('modal-receipt')) document.getElementById('modal-receipt').classList.add('show');
+      } catch (err) {
+        console.error('Error saat menampilkan struk:', err);
+      }   
     }
     function showSuccessReceipt(tx) {
       document.getElementById('receipt-tx-id').textContent = '#' + tx.id;
