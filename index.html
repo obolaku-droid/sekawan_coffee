@@ -1130,13 +1130,17 @@
   </div>
 
   <div id="modal-add-table" class="modal-overlay">
-    <div class="modal-sheet" style="max-width: 300px;">
-      <h3 style="font-size:12px; font-weight:700; margin-bottom:8px;">Tambah Meja Baru</h3>
-      <input type="number" id="new-table-num" placeholder="No Meja..." style="width:100%; padding:6px; border-radius:8px; border:1px solid var(--border); font-size:12px; font-weight:bold; margin-bottom:8px;">
-      <button class="btn-full btn-primary" style="margin-top:0; padding:6px; font-size:11px;" onclick="saveNewTable()">Tambah</button>
-      <button class="btn-full btn-secondary" style="padding:6px; font-size:11px;" onclick="closeModalAddTable()">Batal</button>
+      <div class="modal-content" style="max-width:300px;">
+        <h3 style="font-size:12px; font-weight:700; margin-bottom:8px;">Tambah Meja Khusus</h3>
+        <p style="font-size:10px; color:var(--text-muted); margin-bottom:8px;">Bisa berupa angka atau teks (misal: Sofa 1, VIP A, Meja 12)</p>
+        
+        <!-- Input diubah menjadi TYPE="TEXT" dan ID diubah menjadi new-table-name -->
+        <input type="text" id="new-table-name" placeholder="Ketik nama meja..." style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--border); font-size:12px; font-weight:bold; margin-bottom:12px;">
+        
+        <button class="btn-full btn-primary" style="margin-top:0; padding:8px; font-size:11px;" onclick="saveNewTable()">Simpan Meja</button>
+        <button class="btn-full btn-secondary" style="margin-top:6px; padding:8px; font-size:11px;" onclick="closeModalAddTable()">Batal</button>
+      </div>
     </div>
-  </div>
 
   <!-- Modal Tambah Aset Inventaris -->
   <div id="modal-add-asset" class="modal-overlay">
