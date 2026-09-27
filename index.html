@@ -1271,6 +1271,7 @@
     let categories = JSON.parse(localStorage.getItem('moka_categories')) || INITIAL_CATEGORIES;
     let products = JSON.parse(localStorage.getItem('moka_p')) || INITIAL_PRODUCTS;
     let maxTableNumber = Number(localStorage.getItem('moka_max_table')) || 12;
+    let customTables = JSON.parse(localStorage.getItem('moka_custom_tables')) || [];
     
     let transactions = [];
     let expenses = [];
@@ -1360,6 +1361,11 @@
           if (data.name) storeConfig.name = data.name;
           if (data.logo) storeConfig.logo = data.logo;
           if (data.name || data.logo) { localStorage.setItem('moka_store_config', JSON.stringify(storeConfig)); applyStoreConfig(); }
+          if (data.customTables) { 
+  customTables = data.customTables; 
+  localStorage.setItem('moka_custom_tables', JSON.stringify(customTables)); 
+  if (document.getElementById('tab-meja').classList.contains('active')) renderMeja(); 
+}
           if (data.maxTableNumber) { maxTableNumber = data.maxTableNumber; localStorage.setItem('moka_max_table', maxTableNumber); if (document.getElementById('tab-meja').classList.contains('active')) renderMeja(); }
           if (data.categories) { categories = data.categories; localStorage.setItem('moka_categories', JSON.stringify(categories)); renderCategoriesBar(); }
           if (data.products) { products = data.products; localStorage.setItem('moka_p', JSON.stringify(products)); renderProducts(); }
@@ -2066,16 +2072,44 @@
 
     function renderMeja() {
       let htmlGrid = '';
-      for (let i = 1; i <= maxTableNumber; i++) {
-        const bill = activeBills.find(b => b.type === 'dine_in' && b.table === i);
-        if (bill) {
-          htmlGrid += `<button class="table-box table-occupied" onclick="openTableActionModal('${bill.id}', ${i})"><span style="font-size:16px; font-weight:800;">${i}</span><span style="font-size:8px; font-weight:bold;">Terisi</span><span style="font-size:9px;">${formatRp(bill.total)}</span></button>`;
-        } else {
-          htmlGrid += `<button class="table-box table-available" onclick="startNewTable(${i})"><span style="font-size:16px; font-weight:800;">${i}</span><span style="font-size:8px; font-weight:bold;">Kosong</span></button>`;
-        }
+      
+      // Jika daftar meja kosong, berikan pesan panduan
+      if (!customTables || customTables.length === 0) {
+        document.getElementById('table-grid').innerHTML = '<div style="font-size:10px; color:#94a3b8; text-align:center; padding:20px; grid-column:1/-1;">Belum ada meja. Silakan tambah di Area Pengaturan.</div>';
+        return;
       }
-      document.getElementById('table-grid').innerHTML = htmlGrid;
 
+      // Loop melalui daftar nama meja kustom
+      customTables.forEach(tableName => {
+        // Cek apakah ada pesanan yang tersimpan untuk nama meja ini
+        const bill = activeBills.find(b => b.type === 'dine_in' && String(b.table) === String(tableName));
+        
+        if (bill) {
+          // MEJA TERISI - Tampilkan nama meja, dan cegah penghapusan jika sedang terisi
+          htmlGrid += `
+            <div style="position:relative;">
+              <button class="table-box table-occupied" onclick="openTableActionModal('${bill.id}', '${tableName}')" style="width:100%; height:100%;">
+                <span style="font-size:14px; font-weight:800;">${tableName}</span>
+                <span style="font-size:8px; font-weight:bold;">Terisi</span>
+              </button>
+            </div>`;
+        } else {
+          // MEJA KOSONG - Tambahkan tombol X di sudut kanan atas untuk menghapus meja
+          htmlGrid += `
+            <div style="position:relative;">
+              <button class="table-box table-available" onclick="startNewTable('${tableName}')" style="width:100%; height:100%;">
+                <span style="font-size:14px; font-weight:800;">${tableName}</span>
+                <span style="font-size:8px; font-weight:bold;">Kosong</span>
+              </button>
+              
+              <!-- TOMBOL HAPUS MEJA -->
+              <button onclick="deleteCustomTable('${tableName}')" style="position:absolute; top:2px; right:2px; background:#fee2e2; color:var(--danger); border:none; border-radius:4px; width:20px; height:20px; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.2);">✖</button>
+            </div>`;
+        }
+      });
+      
+      document.getElementById('table-grid').innerHTML = htmlGrid;
+    }
       const twBills = activeBills.filter(b => b.type === 'takeaway');
       document.getElementById('takeaway-list').innerHTML = twBills.length === 0 ? '<div style="font-size:10px; color:#94a3b8; text-align:center;">Kosong</div>' : twBills.map(b => `
         <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;" onclick="loadBill('${b.id}')">
@@ -2083,7 +2117,30 @@
         </div>`).join('');
     }
 
-    function startNewTable(num) { cart = {}; orderType = 'dine_in'; orderTable = num; currentBillId = null; updateKasirView(); updateCartDisplay(); renderProducts(); switchTab('kasir'); }
+    async function deleteCustomTable(tableName) {
+      if(confirm(`Yakin ingin menghapus meja "${tableName}" permanen?`)) {
+        customTables = customTables.filter(t => t !== tableName);
+        if (typeof db !== 'undefined' && typeof appId !== 'undefined') {
+          const fm = window.firebaseModules;
+          try {
+            await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { customTables }, { merge: true });
+          } catch (err) { console.error('Gagal menghapus meja kustom:', err); }
+        }
+        renderMeja();
+        notify(`Meja ${tableName} dihapus.`);
+      }
+    }
+
+    function startNewTable(tableName) { 
+      cart = {}; 
+      orderType = 'dine_in'; 
+      orderTable = tableName; 
+      currentBillId = null; 
+      updateKasirView(); 
+      updateCartDisplay(); 
+      renderProducts(); 
+      switchTab('kasir'); 
+    }
     function startNewTakeaway() { cart = {}; orderType = 'takeaway'; orderTable = null; currentBillId = null; updateKasirView(); updateCartDisplay(); renderProducts(); switchTab('kasir'); }
     function loadBill(billId) {
       const bill = activeBills.find(b => b.id === billId);
