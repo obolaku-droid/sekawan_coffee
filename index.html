@@ -2596,9 +2596,17 @@
         notify('Mencari printer Bluetooth...');
         
         const device = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '49535343-fe7d-4ae5-8fa9-9fafd205e455']
-        });
+      acceptAllDevices: true,
+      optionalServices: [
+        '000018f0-0000-1000-8000-00805f9b34fb', // Standar printer
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2', 
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        '0000ff00-0000-1000-8000-00805f9b34fb', // Vendor spesifik (sering dipakai 58mm)
+        '0000ffe0-0000-1000-8000-00805f9b34fb', 
+        '0000fff0-0000-1000-8000-00805f9b34fb',
+        '0000ae30-0000-1000-8000-00805f9b34fb'  
+      ]
+    });
 
         // Tautkan event listener gattserverdisconnected ke device
         device.addEventListener('gattserverdisconnected', onDisconnected);
@@ -2650,7 +2658,7 @@
         let receipt = "";
         receipt += ESC + "@"; 
         receipt += ESC + "a" + "\x01"; 
-        receipt += "SEKAWAN COFFEE\n";
+        receipt += (typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : "SEKAWAN COFFEE") + "\n";
         receipt += (tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway') + LF;
         receipt += "--------------------------------\n"; 
         
@@ -2670,8 +2678,11 @@
         
         receipt += "--------------------------------\n";
         receipt += "Total  : " + formatRp(tx.total).padStart(23) + LF;
-        receipt += "Tunai  : " + formatRp(tx.cash || tx.total).padStart(23) + LF;
-        receipt += "Kembali: " + formatRp(tx.change || 0).padStart(23) + LF;
+        // Hanya tampilkan Tunai & Kembali jika metode pembayarannya tunai
+        if (tx.paymentMethod === 'tunai') {
+          receipt += "Tunai  : " + formatRp(tx.cash || tx.total).padStart(23) + LF;
+          receipt += "Kembali: " + formatRp(tx.change || 0).padStart(23) + LF;
+        }
         
         receipt += ESC + "a" + "\x01"; 
         receipt += "\nTerima Kasih\nSilakan Datang Kembali\n\n\n";
@@ -2705,9 +2716,9 @@
             itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
         });
         
-        const html = `<html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
+        const html = `<html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 48mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
         <body>
-          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">SEKAWAN COFFEE</div>
+          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE'}</div>
           <div class="center" style="font-size: 10px; margin-bottom: 5px;">${tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway'}</div>
           <div style="border-top:1px dashed #000; margin:5px 0;"></div>
           <div>No: ${tx.id}</div>
@@ -2716,9 +2727,10 @@
           <div style="border-top:1px dashed #000; margin:5px 0;"></div>
           ${itemsHTML}
           <div style="border-top:1px dashed #000; margin:5px 0;"></div>
-          <div class="flex-between bold"><span>Total</span><span>Rp ${tx.total.toLocaleString('id-ID')}</span></div>
+          <div class="flex-between bold"><span>Total</span><span>Rp ${tx.total.toLocaleString('id-ID')}</span></div>${tx.paymentMethod === 'tunai' ? `
           <div class="flex-between"><span>Tunai</span><span>Rp ${(tx.cash || tx.total).toLocaleString('id-ID')}</span></div>
           <div class="flex-between"><span>Kembali</span><span>Rp ${(tx.change || 0).toLocaleString('id-ID')}</span></div>
+          ` : ''}
           <div style="border-top:1px dashed #000; margin:5px 0;"></div>
           <div class="center" style="font-size: 10px; margin-top: 5px;">Terima Kasih<br>Silakan Datang Kembali</div>
         </body></html>` + "<scr" + "ipt>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</scr" + "ipt>";
@@ -2746,7 +2758,7 @@
         let receipt = "";
         receipt += ESC + "@"; 
         receipt += ESC + "a" + "\x01"; 
-        receipt += "SEKAWAN COFFEE\n";
+        receipt += (typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : "SEKAWAN COFFEE") + "\n";
         receipt += "STRUK PESANAN (CHECKER)\n";
         receipt += ESC + "a" + "\x00"; 
         receipt += "--------------------------------\n";
@@ -2791,9 +2803,9 @@
           }
         }
         
-        const html = `<html><head><title>Struk Preorder - ${orderLabel}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; }</style></head>
+        const html = `<html><head><title>Struk Preorder - ${orderLabel}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 48mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; }</style></head>
         <body>
-          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">SEKAWAN COFFEE</div>
+          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE'}</div>
           <div class="center bold" style="font-size: 11px; margin-bottom: 5px; border-bottom:1px solid #000; display:inline-block; padding: 4px;">STRUK PESANAN SEMENTARA</div>
           <div class="center bold" style="font-size: 16px; margin: 8px 0;">${orderLabel}</div>
           <div class="dashed-line"></div>
