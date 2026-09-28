@@ -3944,33 +3944,60 @@ function closeModalEditProduct() {
   openModalManageProducts(); 
 }
     async function saveEditProduct() {
-      const id = document.getElementById('edit-prod-id').value;
-      const name = document.getElementById('edit-prod-name').value.trim();
-      const price = parseInt(document.getElementById('edit-prod-price').value);
+  const id = document.getElementById('edit-prod-id').value;
+  const name = document.getElementById('edit-prod-name').value.trim();
 
-      if(!name || isNaN(price)) {
-        notify('Nama dan Harga wajib diisi!');
-        return;
-      }
+  // Validasi nama tidak boleh kosong
+  if (!name) {
+    notify('Nama menu wajib diisi!');
+    return;
+  }
 
-      const index = products.findIndex(x => x.id === id);
-      if (index !== -1) {
-        products[index].name = name;
-        products[index].price = price;
-        
-        // Simpan pembaruan ke Cloud Firebase
-        if (typeof db !== 'undefined' && typeof appId !== 'undefined') {
-          const fm = window.firebaseModules;
-          try {
-            await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { products }, { merge: true });
-          } catch(err) { console.error('Gagal update menu:', err); }
-        }
-        
-        if (typeof renderProducts === 'function') renderProducts(); // Perbarui tampilan kasir
-        closeModalEditProduct();
-        notify('Menu berhasil diubah!');
-      }
+  const index = products.findIndex(x => x.id === id);
+  if (index === -1) return;
+
+  const p = products[index];
+  p.name = name; // Update nama menu
+
+  // Cek apakah produk ini menggunakan Varian atau Harga Tunggal
+  if (p.variants && p.variants.length > 0) {
+    // 1. Logika simpan untuk Produk ber-Varian (Hot/Ice)
+    p.variants.forEach((v, i) => {
+      const priceInput = document.getElementById(`edit-var-price-${i}`);
+      const hppInput = document.getElementById(`edit-var-hpp-${i}`);
+      
+      if (priceInput) v.price = parseInt(priceInput.value) || 0;
+      if (hppInput) v.hpp = parseInt(hppInput.value) || 0;
+    });
+  } else {
+    // 2. Logika simpan untuk Produk dengan Harga Tunggal
+    const priceVal = parseInt(document.getElementById('edit-prod-price').value);
+    const hppVal = parseInt(document.getElementById('edit-prod-hpp').value);
+
+    if (isNaN(priceVal)) {
+      notify('Harga jual wajib diisi!');
+      return;
     }
+
+    p.price = priceVal;
+    p.hpp = isNaN(hppVal) ? 0 : hppVal;
+  }
+
+  // Simpan pembaruan ke Cloud Firebase
+  if (typeof db !== 'undefined' && typeof appId !== 'undefined') {
+    const fm = window.firebaseModules;
+    try {
+      await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { products }, { merge: true });
+    } catch(err) { 
+      console.error('Gagal update menu:', err); 
+    }
+  }
+
+  if (typeof renderProducts === 'function') renderProducts(); // Perbarui tampilan kasir utama
+  
+  closeModalEditProduct(); // Tutup form dan kembali ke daftar menu
+  notify('Menu berhasil diubah!');
+}
 
     async function deleteProduct() {
       const id = document.getElementById('edit-prod-id').value;
@@ -3986,7 +4013,7 @@ function closeModalEditProduct() {
         }
         
         if (typeof renderProducts === 'function') renderProducts(); // Perbarui tampilan kasir
-        document.getElementById('modal-edit-product').classList.remove('show');
+        document.getElementById('modal-edit-product').style.display = 'none';
         openModalManageProducts(); // Buka ulang daftar menu
         notify('Menu berhasil dihapus permanen!');
       }
