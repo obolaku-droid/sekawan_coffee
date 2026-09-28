@@ -2632,13 +2632,13 @@
         const LF = "\x0A";
         
         let receipt = "";
-        receipt += ESC + "@"; // Initialize Printer
-        receipt += ESC + "a" + "\x01"; // Align Center
+        receipt += ESC + "@"; 
+        receipt += ESC + "a" + "\x01"; 
         receipt += "SEKAWAN COFFEE\n";
         receipt += (tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway') + LF;
-        receipt += "--------------------------------\n"; // 32 Karakter (Kertas 58mm)
+        receipt += "--------------------------------\n"; 
         
-        receipt += ESC + "a" + "\x00"; // Align Left
+        receipt += ESC + "a" + "\x00"; 
         receipt += "No   : " + tx.id + LF;
         receipt += "Tgl  : " + new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) + LF;
         receipt += "Bayar: " + (tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS') + LF;
@@ -2648,7 +2648,6 @@
            receipt += i.name + LF;
            const qtyPrice = i.qty + "x " + formatRp(i.price);
            const subtotal = formatRp(i.price * i.qty);
-           // Merapikan spasi kiri-kanan (max 32 huruf)
            const spaceCount = Math.max(1, 32 - qtyPrice.length - subtotal.length);
            receipt += qtyPrice + " ".repeat(spaceCount) + subtotal + LF;
         });
@@ -2658,15 +2657,13 @@
         receipt += "Tunai  : " + formatRp(tx.cash || tx.total).padStart(23) + LF;
         receipt += "Kembali: " + formatRp(tx.change || 0).padStart(23) + LF;
         
-        receipt += ESC + "a" + "\x01"; // Align Center
+        receipt += ESC + "a" + "\x01"; 
         receipt += "\nTerima Kasih\nSilakan Datang Kembali\n\n\n";
         
-        // Convert teks ke format Uint8Array untuk dikirim ke Bluetooth
         const encoder = new TextEncoder();
         const data = encoder.encode(receipt);
         
         try {
-          // Kirim data secara bertahap (Chunking) untuk mencegah kemacetan memori BLE
           for (let i = 0; i < data.length; i += 50) {
             await btCharacteristic.writeValue(data.slice(i, i + 50));
           }
@@ -2684,8 +2681,7 @@
             itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
         });
         
-        const html = `
-        <html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
+        const html = `<html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
         <body>
           <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">SEKAWAN COFFEE</div>
           <div class="center" style="font-size: 10px; margin-bottom: 5px;">${tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway'}</div>
@@ -2701,14 +2697,14 @@
           <div class="flex-between"><span>Kembali</span><span>Rp ${(tx.change || 0).toLocaleString('id-ID')}</span></div>
           <div style="border-top:1px dashed #000; margin:5px 0;"></div>
           <div class="center" style="font-size: 10px; margin-top: 5px;">Terima Kasih<br>Silakan Datang Kembali</div>
-          <script>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</script>
-        </body></html>`;
+        </body></html>` + "<scr" + "ipt>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</scr" + "ipt>";
+        
         printWindow.document.write(html);
         printWindow.document.close();
       }
     }
 
-function printPreorder() {
+    function printPreorder() {
       const count = calculateCartTotal();
       if (count === 0) {
         notify('Belum ada pesanan yang dipilih!');
@@ -2719,24 +2715,22 @@ function printPreorder() {
       const now = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
       const cashierName = currentShift ? currentShift.cashier : '-';
 
-      // 1. Jika Printer Bluetooth Terhubung (ESC/POS)
       if (btCharacteristic) {
         const ESC = "\x1B";
         const LF = "\x0A";
         
         let receipt = "";
-        receipt += ESC + "@"; // Initialize Printer
-        receipt += ESC + "a" + "\x01"; // Align Center
+        receipt += ESC + "@"; 
+        receipt += ESC + "a" + "\x01"; 
         receipt += "SEKAWAN COFFEE\n";
         receipt += "STRUK PESANAN (CHECKER)\n";
-        receipt += ESC + "a" + "\x00"; // Align Left
+        receipt += ESC + "a" + "\x00"; 
         receipt += "--------------------------------\n";
         receipt += "Tipe : " + orderLabel + LF;
         receipt += "Tgl  : " + now + LF;
         receipt += "Kasir: " + cashierName + LF;
         receipt += "--------------------------------\n";
         
-        // Daftar Item Pesanan (Tanpa Harga)
         for (const [varId, qty] of Object.entries(cart)) {
           const d = getVariantDetails(varId);
           if (d) {
@@ -2746,8 +2740,8 @@ function printPreorder() {
         }
         
         receipt += "--------------------------------\n";
-        receipt += ESC + "a" + "\x01"; // Align Center
-        receipt += "\n\n\n"; // Feed paper agar mudah disobek
+        receipt += ESC + "a" + "\x01"; 
+        receipt += "\n\n\n"; 
         
         const encoder = new TextEncoder();
         const data = encoder.encode(receipt);
@@ -2762,7 +2756,6 @@ function printPreorder() {
           notify('Gagal mencetak checker! Coba koneksikan ulang printer.');
         }
       } 
-      // 2. Fallback: Jika Bluetooth TIDAK Terhubung (Cetak Browser Biasa)
       else {
         const printWindow = window.open('', '_blank', 'width=400,height=600');
         let itemsHTML = '';
@@ -2773,8 +2766,7 @@ function printPreorder() {
           }
         }
         
-        const html = `
-        <html><head><title>Struk Preorder - ${orderLabel}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; }</style></head>
+        const html = `<html><head><title>Struk Preorder - ${orderLabel}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; }</style></head>
         <body>
           <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">SEKAWAN COFFEE</div>
           <div class="center bold" style="font-size: 11px; margin-bottom: 5px; border-bottom:1px solid #000; display:inline-block; padding: 4px;">STRUK PESANAN SEMENTARA</div>
@@ -2784,8 +2776,7 @@ function printPreorder() {
           <div class="dashed-line"></div>
           ${itemsHTML}
           <div class="dashed-line"></div>
-          <script>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</script>
-        </body></html>`;
+        </body></html>` + "<scr" + "ipt>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</scr" + "ipt>";
         
         printWindow.document.write(html);
         printWindow.document.close();
