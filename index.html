@@ -1029,6 +1029,10 @@
         </div>
       </div>
 
+      <!-- TEMPELKAN KODE INI DI BARIS 1031/1032 -->
+<button id="btn-connect-printer" onclick="connectBluetoothPrinter()" style="width:100%; background:#0f172a; color:white; padding:8px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; border:none; margin-bottom:10px;">
+  🔌 Hubungkan Printer Bluetooth
+</button>
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="btn-full btn-wa" style="margin-top:0; padding:8px; flex:1;" onclick="shareReceiptWA()">💬 Kirim WA</button>
         <button class="btn-full" style="margin-top:0; padding:8px; flex:1; background:#334155; color:white;" onclick="printReceiptThermal()">🖨️ Cetak</button>
@@ -2569,32 +2573,139 @@
       window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    function printReceiptThermal(txId) {
+    // ==========================================
+    // SISTEM PRINTER THERMAL BLUETOOTH (ESC/POS)
+    // ==========================================
+    let btDevice = null;
+    let btCharacteristic = null;
+
+    // 1. Fungsi Mencari & Menyambungkan Printer Bluetooth
+    async function connectBluetoothPrinter() {
+      try {
+        notify('Mencari printer Bluetooth...');
+        
+        // Meminta browser mencari semua perangkat Bluetooth
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '49535343-fe7d-4ae5-8fa9-9fafd205e455'] // UUID standar printer kasir
+        });
+
+        const server = await device.gatt.connect();
+        const services = await server.getPrimaryServices();
+        let characteristic = null;
+
+        // Mencari jalur data (characteristic) yang bisa ditulis (ESC/POS)
+        for (const service of services) {
+          const characteristics = await service.getCharacteristics();
+          for (const char of characteristics) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              characteristic = char;
+              break;
+            }
+          }
+          if (characteristic) break;
+        }
+
+        if (characteristic) {
+          btDevice = device;
+          btCharacteristic = characteristic;
+          notify('✅ Printer Berhasil Terhubung!');
+          document.getElementById('btn-connect-printer').textContent = '✅ Printer Terhubung';
+          document.getElementById('btn-connect-printer').style.background = 'var(--success)';
+        } else {
+          notify('❌ Gagal menemukan jalur data printer.');
+        }
+      } catch (error) {
+        console.error(error);
+        notify('Koneksi printer dibatalkan/gagal.');
+      }
+    }
+
+    // 2. Fungsi Cetak Struk (Mendukung Bluetooth & Fallback Web)
+    async function printReceiptThermal(txId) {
       let tx = txId ? transactions.find(t => t.id === txId) : (typeof lastReceipt !== 'undefined' ? lastReceipt : null);
       if (!tx) { notify('Data transaksi tidak ditemukan!'); return; }
 
-      const printWindow = window.open('', '_blank', 'width=400,height=600');
-      let itemsHTML = '';
-      tx.items.forEach(i => {
-        itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
-      });
+      // Jika printer Bluetooth TERHUBUNG, cetak via Bluetooth (ESC/POS)
+      if (btCharacteristic) {
+        const ESC = "\x1B";
+        const LF = "\x0A";
+        
+        let receipt = "";
+        receipt += ESC + "@"; // Initialize Printer
+        receipt += ESC + "a" + "\x01"; // Align Center
+        receipt += "SEKAWAN COFFEE\n";
+        receipt += (tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway') + LF;
+        receipt += "--------------------------------\n"; // 32 Karakter (Kertas 58mm)
+        
+        receipt += ESC + "a" + "\x00"; // Align Left
+        receipt += "No   : " + tx.id + LF;
+        receipt += "Tgl  : " + new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) + LF;
+        receipt += "Bayar: " + (tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS') + LF;
+        receipt += "--------------------------------\n";
+        
+        tx.items.forEach(i => {
+           receipt += i.name + LF;
+           const qtyPrice = i.qty + "x " + formatRp(i.price);
+           const subtotal = formatRp(i.price * i.qty);
+           // Merapikan spasi kiri-kanan (max 32 huruf)
+           const spaceCount = Math.max(1, 32 - qtyPrice.length - subtotal.length);
+           receipt += qtyPrice + " ".repeat(spaceCount) + subtotal + LF;
+        });
+        
+        receipt += "--------------------------------\n";
+        receipt += "Total  : " + formatRp(tx.total).padStart(23) + LF;
+        receipt += "Tunai  : " + formatRp(tx.cash || tx.total).padStart(23) + LF;
+        receipt += "Kembali: " + formatRp(tx.change || 0).padStart(23) + LF;
+        
+        receipt += ESC + "a" + "\x01"; // Align Center
+        receipt += "\nTerima Kasih\nSilakan Datang Kembali\n\n\n";
+        
+        // Convert teks ke format Uint8Array untuk dikirim ke Bluetooth
+        const encoder = new TextEncoder();
+        const data = encoder.encode(receipt);
+        
+        try {
+          // Kirim data secara bertahap (Chunking) untuk mencegah kemacetan memori BLE
+          for (let i = 0; i < data.length; i += 50) {
+            await btCharacteristic.writeValue(data.slice(i, i + 50));
+          }
+          notify('🖨️ Struk sedang dicetak...');
+        } catch (error) {
+          console.error(error);
+          notify('Gagal mencetak! Coba koneksikan ulang printer.');
+        }
 
-      const html = `
-        <html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; } .flex-between { display: flex; justify-content: space-between; }</style></head>
+      } else {
+        // FALLBACK: Jika printer Bluetooth TIDAK terhubung, gunakan cetak browser biasa
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        let itemsHTML = '';
+        tx.items.forEach(i => {
+            itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
+        });
+        
+        const html = `
+        <html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 58mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
         <body>
-          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${storeConfig.name.toUpperCase()}</div>
-          <div class="center" style="font-size: 10px; margin-bottom: 5px;">${tx.orderType === 'dine_in' ? 'Dine In - Meja ' + tx.table : 'Takeaway'}</div>
-          <div class="dashed-line"></div>
-          <div style="font-size: 10px;"><div>No   : ${tx.id}</div><div>Tgl  : ${new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</div><div>Bayar: ${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'}</div></div>
-          <div class="dashed-line"></div>${itemsHTML}<div class="dashed-line"></div>
+          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">SEKAWAN COFFEE</div>
+          <div class="center" style="font-size: 10px; margin-bottom: 5px;">${tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway'}</div>
+          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
+          <div>No: ${tx.id}</div>
+          <div>Tgl: ${new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</div>
+          <div>Bayar: ${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'}</div>
+          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
+          ${itemsHTML}
+          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
           <div class="flex-between bold"><span>Total</span><span>Rp ${tx.total.toLocaleString('id-ID')}</span></div>
-          <div class="flex-between" style="font-size:10px;"><span>Tunai</span><span>Rp ${(tx.cash || tx.total).toLocaleString('id-ID')}</span></div>
-          <div class="flex-between" style="font-size:10px;"><span>Kembali</span><span>Rp ${(tx.change || 0).toLocaleString('id-ID')}</span></div>
-          <div class="dashed-line"></div><div class="center" style="font-size: 10px; margin-top: 5px;">Terima Kasih<br>Silakan Datang Kembali</div>
-          <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };<\\/script>
-        </body></html>
-      `;
-      printWindow.document.write(html); printWindow.document.close();
+          <div class="flex-between"><span>Tunai</span><span>Rp ${(tx.cash || tx.total).toLocaleString('id-ID')}</span></div>
+          <div class="flex-between"><span>Kembali</span><span>Rp ${(tx.change || 0).toLocaleString('id-ID')}</span></div>
+          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
+          <div class="center" style="font-size: 10px; margin-top: 5px;">Terima Kasih<br>Silakan Datang Kembali</div>
+          <script>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</script>
+        </body></html>`;
+        printWindow.document.write(html);
+        printWindow.document.close();
+      }
     }
 
 function printPreorder() {
