@@ -2453,67 +2453,66 @@ if (count === 0) {
       await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
 
-      // 3. LOGIKA SPLIT BILL PADA MEJA (Agar tidak kosong)
+      // 3. LOGIKA SPLIT BILL PADA MEJA (Agar sisa pesanan berkurang)
       if (orderType === 'dine_in') {
-        // Cari menu apa saja yang tidak dicentang (Sisa Pesanan)
-        let sisaCart = {};
-        let adaSisa = false;
-        Object.entries(cart).forEach(([varId, qty]) => {
-          let qtyDibayar = paidCart[varId] || 0;
-          if (qty > qtyDibayar) {
-            sisaCart[varId] = qty - qtyDibayar;
-            adaSisa = true;
+        // a. Kurangi item di keranjang utama dengan item yang baru saja dibayar
+        for (const varId in paidCart) {
+          if (cart[varId]) {
+            cart[varId] -= paidCart[varId];
+            if (cart[varId] <= 0) {
+              delete cart[varId]; // Hapus item dari keranjang jika qty 0 (lunas)
+            }
           }
-        });
+        }
 
-        const fm = window.firebaseModules;
+        // b. Hitung ulang sisa pesanan di keranjang
+        const { count, sum } = calculateCartTotal();
+        const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId || b.table === orderTable);
 
-        if (adaSisa) {
-          // JIKA ADA SISA: Meja tetap terisi dengan sisa menu
-          const sisaTotal = Object.entries(sisaCart).reduce((acc, [vId, q]) => acc + (getVariantDetails(vId).v.price * q), 0);
+        if (count === 0) {
+          // c. Jika semua lunas (keranjang kosong), HAPUS MEJA
+          if (existingBillIndex !== -1) {
+            const billToDel = activeBills[existingBillIndex];
+            
+            // Hapus dari database (jika terkoneksi Firebase)
+            if (typeof db !== 'undefined' && db && typeof appId !== 'undefined') {
+              const fm = window.firebaseModules;
+              if (billToDel.firestoreId && fm) {
+                const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billToDel.firestoreId);
+                fm.deleteDoc(docRef);
+              }
+            }
+            // Hapus dari memori lokal aplikasi
+            activeBills.splice(existingBillIndex, 1);
+          }
+          // Reset status kasir
+          orderType = 'takeaway';
+          orderTable = null;
+          currentBillId = null;
           
-          if (currentBillId) {
-            // Update meja yang sudah ada
-            const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId);
-            if (existingBillIndex >= 0) {
-              let targetBill = activeBills[existingBillIndex];
-              targetBill.cartData = sisaCart;
-              targetBill.total = sisaTotal;
-              
-              if (db && appId) {
-                const billFirestoreId = currentFirestoreId || targetBill.firestoreId;
-                if (billFirestoreId) {
-                  try { await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId), targetBill, { merge: true }); } catch(e) {}
-                }
-              }
-            }
-          } else {
-            // Buat data meja baru jika meja tersebut belum pernah di-"Simpan Meja" sebelumnya
-            const newBill = { id: 'BILL-' + Date.now(), type: orderType, table: orderTable, cartData: sisaCart, total: sisaTotal, date: new Date().toISOString() };
-            if (db && appId) {
-              try { await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'bills'), newBill); } catch(e) {}
-            } else {
-              activeBills.push(newBill);
-            }
-          }
         } else {
-          // JIKA LUNAS SEMUA: Hapus meja dari daftar
-          if (currentBillId) {
-            const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId);
-            if (existingBillIndex >= 0) {
-              let targetBill = activeBills[existingBillIndex];
-              if (db && appId) {
-                const billFirestoreId = currentFirestoreId || targetBill.firestoreId;
-                if (billFirestoreId) {
-                  try { await fm.deleteDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billFirestoreId)); } catch(e) {}
+          // d. Jika MASIH ADA SISA pesanan, perbarui data meja dengan keranjang yang baru
+          if (existingBillIndex !== -1) {
+            activeBills[existingBillIndex].cartData = { ...cart };
+            activeBills[existingBillIndex].total = sum;
+            
+            // Perbarui ke database
+            const billToUpdate = activeBills[existingBillIndex];
+            if (typeof db !== 'undefined' && db && typeof appId !== 'undefined') {
+              const fm = window.firebaseModules;
+              if (billToUpdate.firestoreId && fm) {
+                const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billToUpdate.firestoreId);
+                // Gunakan updateDoc atau setDoc sesuai struktur Anda
+                if (fm.updateDoc) {
+                   fm.updateDoc(docRef, { cartData: { ...cart }, total: sum });
+                } else if (fm.setDoc) {
+                   fm.setDoc(docRef, billToUpdate);
                 }
               }
-              activeBills.splice(existingBillIndex, 1);
             }
           }
         }
       }
-
       // 4. Tutup modal & Reset tampilan (JIKA ERROR TERJADI SEBELUMNYA, BARIS INI GAGAL JALAN)
       if(typeof closeModalCheckout === 'function') closeModalCheckout();
       else document.getElementById('modal-checkout').classList.remove('show');
