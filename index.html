@@ -2226,11 +2226,14 @@
 
     // 1. Membuka Modal Checkout dengan Checkbox Split Bill
     function openModalCheckout() {
-      const sum = calculateCartTotal();
-      if (sum === 0) {
-        notify('Keranjang masih kosong!');
+      // PERBAIKAN: Gunakan destructuring
+      const { sum, count } = calculateCartTotal();
+      
+      if (count === 0) {
+        notify('Keranjang kosong!');
         return;
       }
+     
 
       let htmlItems = '';
       Object.entries(cart).forEach(([varId, qty]) => {
@@ -2359,8 +2362,11 @@
 
     // Fungsi untuk Menyimpan Meja (Simpan Pesanan Tanpa Bayar)
     async function saveActiveOrder() {
-      const sum = calculateCartTotal();
-      if (sum === 0) return;
+      const { sum, count } = calculateCartTotal();
+if (count === 0) {
+  notify('Belum ada pesanan yang dipilih!');
+  return;
+}
       
       const newBill = { 
         id: currentBillId || 'BILL-' + Date.now(), 
@@ -2747,7 +2753,7 @@
     }
 
     async function printPreorder() {
-      const count = calculateCartTotal();
+      const { sum, count } = calculateCartTotal();
       if (count === 0) {
         notify('Belum ada pesanan yang dipilih!');
         return;
