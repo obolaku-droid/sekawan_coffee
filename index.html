@@ -1030,9 +1030,6 @@
       </div>
 
       <!-- TEMPELKAN KODE INI DI BARIS 1031/1032 -->
-<button id="btn-connect-printer" onclick="connectBluetoothPrinter()" style="width:100%; background:#0f172a; color:white; padding:8px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; border:none; margin-bottom:10px;">
-  🔌 Hubungkan Printer Bluetooth
-</button>
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="btn-full btn-wa" style="margin-top:0; padding:8px; flex:1;" onclick="shareReceiptWA()">💬 Kirim WA</button>
         <button class="btn-full" style="margin-top:0; padding:8px; flex:1; background:#334155; color:white;" onclick="printReceiptThermal()">🖨️ Cetak</button>
@@ -2579,22 +2576,37 @@
     let btDevice = null;
     let btCharacteristic = null;
 
+    // Fungsi untuk menangani saat printer terputus (mati / di luar jangkauan)
+    function onDisconnected(event) {
+      btDevice = null;
+      btCharacteristic = null;
+      notify('⚠️ Printer terputus atau di luar jangkauan!');
+      
+      // Kembalikan tampilan tombol global ke mode awal
+      const btnPrinter = document.getElementById('btn-connect-printer');
+      if(btnPrinter) {
+         btnPrinter.style.background = '#0f172a'; // warna gelap (disconnect)
+         document.getElementById('printer-status-text').textContent = 'Printer: Disconnect';
+      }
+    }
+
     // 1. Fungsi Mencari & Menyambungkan Printer Bluetooth
     async function connectBluetoothPrinter() {
       try {
         notify('Mencari printer Bluetooth...');
         
-        // Meminta browser mencari semua perangkat Bluetooth
         const device = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
-          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '49535343-fe7d-4ae5-8fa9-9fafd205e455'] // UUID standar printer kasir
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '49535343-fe7d-4ae5-8fa9-9fafd205e455']
         });
+
+        // Tautkan event listener gattserverdisconnected ke device
+        device.addEventListener('gattserverdisconnected', onDisconnected);
 
         const server = await device.gatt.connect();
         const services = await server.getPrimaryServices();
         let characteristic = null;
 
-        // Mencari jalur data (characteristic) yang bisa ditulis (ESC/POS)
         for (const service of services) {
           const characteristics = await service.getCharacteristics();
           for (const char of characteristics) {
@@ -2610,8 +2622,12 @@
           btDevice = device;
           btCharacteristic = characteristic;
           notify('✅ Printer Berhasil Terhubung!');
-          document.getElementById('btn-connect-printer').textContent = '✅ Printer Terhubung';
-          document.getElementById('btn-connect-printer').style.background = 'var(--success)';
+          
+          const btnPrinter = document.getElementById('btn-connect-printer');
+          if(btnPrinter) {
+             btnPrinter.style.background = '#10b981'; // warna hijau (success)
+             document.getElementById('printer-status-text').textContent = 'Terhubung';
+          }
         } else {
           notify('❌ Gagal menemukan jalur data printer.');
         }
@@ -2664,10 +2680,18 @@
         const data = encoder.encode(receipt);
         
         try {
-          for (let i = 0; i < data.length; i += 50) {
-            await btCharacteristic.writeValue(data.slice(i, i + 50));
+          // Perbaikan MTU BLE ke 20 byte & penggunaan method Web Bluetooth terbaru
+          for (let i = 0; i < data.length; i += 20) {
+            const chunk = data.slice(i, i + 20);
+            
+            // Cek properti characteristic untuk memilih metode write yang tepat
+            if (btCharacteristic.properties.writeWithoutResponse) {
+              await btCharacteristic.writeValueWithoutResponse(chunk);
+            } else {
+              await btCharacteristic.writeValueWithResponse(chunk);
+            }
           }
-          notify('🖨️ Struk sedang dicetak...');
+          notify('🖨️ Proses cetak selesai...');
         } catch (error) {
           console.error(error);
           notify('Gagal mencetak! Coba koneksikan ulang printer.');
@@ -2704,7 +2728,7 @@
       }
     }
 
-    function printPreorder() {
+    async function printPreorder() {
       const count = calculateCartTotal();
       if (count === 0) {
         notify('Belum ada pesanan yang dipilih!');
@@ -2747,8 +2771,9 @@
         const data = encoder.encode(receipt);
         
         try {
+          // PERBAIKAN: Menggunakan await agar pengiriman data berurutan (chunking aman)
           for (let i = 0; i < data.length; i += 50) {
-             btCharacteristic.writeValue(data.slice(i, i + 50));
+             await btCharacteristic.writeValue(data.slice(i, i + 50));
           }
           notify('🖨️ Checker pesanan sedang dicetak...');
         } catch (error) {
