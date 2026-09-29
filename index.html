@@ -2768,7 +2768,7 @@ if (count === 0) {
             itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
         });
         
-        const html = `<html><head><title>Struk - ${tx.id}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 48mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
+        const html = `<html><head><title>Struk - ${tx.id}</title><style>@page { size: 58mm auto; margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 48mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
         <body>
           <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE'}</div>
           <div class="center" style="font-size: 10px; margin-bottom: 5px;">${tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway'}</div>
