@@ -21,9 +21,9 @@
     import { getFirestore, doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     window.firebaseModules = {
-      initializeApp, getAuth, signInAnonymously,
-      getFirestore, doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, setDoc
-    };
+  initializeApp, getAuth, signInAnonymously,
+  getFirestore, doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, setDoc
+};
   </script>
 
   <style>
@@ -1364,9 +1364,9 @@
     const AUDIT_COLLECTION = 'auditLogs';
 
     function getOfflineQueue() {
-      try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY)) || []; }
-      catch (_) { return []; }
-    }
+  try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY)) || []; }
+  catch (e) { return []; }
+}
 
     function saveOfflineQueue(queue) {
       localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
@@ -1680,8 +1680,8 @@
     }
 
     function verifyModalOwnerPin() {
-      const pin = document.getElementById('modal-owner-pin-input').value.trim();
-      if (pin === ownerPin) {
+  const pin = document.getElementById('modal-owner-pin-input').value.trim();
+  if (pin === ownerPin) {
         isOwnerAuthenticated = true;
         document.getElementById('modal-owner-pin').classList.remove('show');
         document.getElementById('modal-owner-pin-input').value = '';
@@ -2196,13 +2196,16 @@
     }
 
     function calculateCartTotal() {
-      let sum = 0; let count = 0;
-      for (const [varId, qty] of Object.entries(cart)) {
-        const d = getVariantDetails(varId);
-        if (d) { sum += d.v.price * qty; count += qty; }
-      }
-      return { sum, count };
+  let sum = 0; let count = 0;
+  for (const [varId, qty] of Object.entries(cart)) {
+    const d = getVariantDetails(varId); // Pastikan fungsi ini tidak ada spasi: getVariantDetails
+    if (d) { 
+      sum += d.v.price * qty; 
+      count += qty;
     }
+  }
+  return { sum, count };
+}
 
     function updateCartDisplay() {
       const { sum, count } = calculateCartTotal();
