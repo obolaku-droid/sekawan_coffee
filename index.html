@@ -18,11 +18,11 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, onSnapshot, collection, addDoc, getDocs, getDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     window.firebaseModules = {
   initializeApp, getAuth, signInAnonymously,
-  getFirestore, doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, setDoc
+  getFirestore, doc, onSnapshot, collection, addDoc, getDocs, getDoc, deleteDoc, setDoc
 };
   </script>
 
@@ -1672,7 +1672,7 @@ if (data.ownerPin && !ownerPinHash) {
 
     function selectRole(role) {
       document.getElementById('modal-role-select').classList.remove('show');
-      if (role === 'kasir') { checkShiftStatus(); } else { document.getElementById('modal-owner-pin').classList.add('show'); }
+      if (role === 'kasir') { isOwnerAuthenticated = false; checkShiftStatus(); } else { document.getElementById('modal-owner-pin').classList.add('show'); }
     }
 
     function cancelOwnerPin() {
@@ -1683,19 +1683,6 @@ if (data.ownerPin && !ownerPinHash) {
     function cancelShiftModal() {
       document.getElementById('modal-open-shift').classList.remove('show');
       document.getElementById('modal-role-select').classList.add('show');
-    }
-
-    function verifyModalOwnerPin() {
-  const pin = document.getElementById('modal-owner-pin-input').value.trim();
-  if (pin === ownerPin) {
-        isOwnerAuthenticated = true;
-        document.getElementById('modal-owner-pin').classList.remove('show');
-        document.getElementById('modal-owner-pin-input').value = '';
-        document.getElementById('privasi-lock-view').classList.add('hidden');
-        document.getElementById('privasi-content-view').classList.remove('hidden');
-        switchTab('privasi');
-        notify('Berhasil masuk area Owner');
-      } else { notify('PIN Owner Salah!'); }
     }
 
     function checkShiftStatus() {
@@ -1916,7 +1903,7 @@ if (data.ownerPin && !ownerPinHash) {
       document.getElementById('drawer-overlay').classList.remove('show');
       document.getElementById('drawer-menu').classList.remove('show');
 
-      if (name !== 'privasi') isOwnerAuthenticated = false;
+      // Status Owner tetap aktif selama sesi Owner agar fitur khusus seperti VOID tersedia di Riwayat.
       if (name === 'privasi') {
         if (!isOwnerAuthenticated) {
           document.getElementById('privasi-lock-view').classList.remove('hidden');
@@ -1940,44 +1927,133 @@ if (data.ownerPin && !ownerPinHash) {
     async function hashOwnerPin(pin, salt) {
       const data = new TextEncoder().encode(`${salt}:${pin}`);
       const digest = await crypto.subtle.digest('SHA-256', data);
-      return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function getOwnerPinConfigRef() {
+      if (!db || !appId || !window.firebaseModules) return null;
+      const fm = window.firebaseModules;
+      return fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+    }
+
+    async function loadOwnerPinFromCloud() {
+      const ref = getOwnerPinConfigRef();
+      if (!ref) return false;
+
+      const fm = window.firebaseModules;
+      try {
+        const snap = await fm.getDoc(ref);
+        if (!snap.exists()) return false;
+        const data = snap.data() || {};
+
+        if (data.ownerPinHash && data.ownerPinSalt) {
+          ownerPinHash = String(data.ownerPinHash);
+          ownerPinSalt = String(data.ownerPinSalt);
+          ownerPin = '';
+          return true;
+        }
+
+        // Legacy migration only: support an old plaintext PIN that may still exist
+        // in the cloud. It is never written to Local Storage.
+        if (data.ownerPin) {
+          ownerPin = String(data.ownerPin);
+          return true;
+        }
+      } catch (err) {
+        console.error('Load Owner PIN err:', err);
+      }
+      return false;
     }
 
     async function ensureOwnerPinHash() {
-  if (ownerPinHash && ownerPinSalt) return;
-  const salt = ownerPinSalt || generateStableld('SALT');
-  const hash = await hashOwnerPin(ownerPin || '123456', salt);
-  ownerPinSalt = salt; 
-  ownerPinHash = hash;
-  
-  if (db && appld) { 
-    try { 
-      await window.firebaseModules.setDoc(window.firebaseModules.doc(db,'artifacts', appld,'public','data', 'settings','config'), {ownerPinHash:hash, ownerPinSalt:salt, ownerPin:null}, {merge:true}); 
-    } catch(e){ console.debug('PIN migration failed',e); } 
-  }
-}
-    async function verifyOwnerPin() {
-      const pin = document.getElementById('owner-pin-input').value.trim();
-      if (ownerPinHash && ownerPinSalt) {
-        const candidate = await hashOwnerPin(pin, ownerPinSalt);
-        if (candidate === ownerPinHash) {
-          isOwnerAuthenticated=true;
-          document.getElementById('privasi-lock-view').classList.add('hidden');
-          document.getElementById('privasi-content-view').classList.remove('hidden');
-          renderReports(); return;
+      if (ownerPinHash && ownerPinSalt) return true;
+
+      if (!ownerPin) ownerPin = '123456';
+      const salt = ownerPinSalt || generateStableId('SALT');
+      const hash = await hashOwnerPin(ownerPin, salt);
+      const ref = getOwnerPinConfigRef();
+
+      // Never claim migration succeeded unless Firestore accepted the write.
+      if (!ref) return false;
+
+      try {
+        await window.firebaseModules.setDoc(ref, {
+          ownerPinHash: hash,
+          ownerPinSalt: salt,
+          ownerPin: null
+        }, { merge: true });
+
+        ownerPinSalt = salt;
+        ownerPinHash = hash;
+        ownerPin = '';
+        return true;
+      } catch (err) {
+        console.error('PIN migration failed:', err);
+        return false;
+      }
+    }
+
+    async function verifyModalOwnerPin() {
+      const input = document.getElementById('modal-owner-pin-input');
+      const pin = input.value.trim();
+      if (!/^\d{4,12}$/.test(pin)) { notify('PIN harus 4-12 digit angka'); return; }
+
+      // Always give the current device a chance to fetch the latest cloud PIN.
+      if (!ownerPinHash || !ownerPinSalt) await loadOwnerPinFromCloud();
+
+      let valid = false;
+      try {
+        if (ownerPinHash && ownerPinSalt) {
+          valid = (await hashOwnerPin(pin, ownerPinSalt)) === ownerPinHash;
+        } else {
+          valid = pin === (ownerPin || '123456');
+          if (valid) await ensureOwnerPinHash();
         }
-      } else if (pin === ownerPin) {
-        await ensureOwnerPinHash();
-        isOwnerAuthenticated=true;
+      } catch (err) {
+        console.error('Owner PIN verification error:', err);
+      }
+
+      if (valid) {
+        isOwnerAuthenticated = true;
+        document.getElementById('modal-owner-pin').classList.remove('show');
+        input.value = '';
         document.getElementById('privasi-lock-view').classList.add('hidden');
         document.getElementById('privasi-content-view').classList.remove('hidden');
-        renderReports(); return;
+        switchTab('privasi');
+        notify('Berhasil masuk area Owner');
+      } else {
+        notify('PIN Owner Salah!');
+      }
+    }
+
+    async function verifyOwnerPin() {
+      const input = document.getElementById('owner-pin-input');
+      const pin = input.value.trim();
+      if (!/^\d{4,12}$/.test(pin)) { notify('PIN harus 4-12 digit angka'); return; }
+
+      if (!ownerPinHash || !ownerPinSalt) await loadOwnerPinFromCloud();
+
+      let valid = false;
+      try {
+        if (ownerPinHash && ownerPinSalt) {
+          valid = (await hashOwnerPin(pin, ownerPinSalt)) === ownerPinHash;
+        } else {
+          valid = pin === (ownerPin || '123456');
+          if (valid) await ensureOwnerPinHash();
+        }
+      } catch (err) {
+        console.error('Owner PIN verification error:', err);
+      }
+
+      if (valid) {
+        isOwnerAuthenticated = true;
+        document.getElementById('privasi-lock-view').classList.add('hidden');
+        document.getElementById('privasi-content-view').classList.remove('hidden');
+        renderReports();
+        return;
       }
       notify('PIN Salah!');
     }
-
-
-    
 
     async function saveStoreSettings() {
       const name = document.getElementById('setting-store-name').value.trim();
@@ -1995,33 +2071,47 @@ if (data.ownerPin && !ownerPinHash) {
       notify('Profil & Logo disinkronkan ke Cloud');
     }
     async function saveNewPin() {
-  const newPin = document.getElementById('setting-new-pin').value.trim();
-  if (!/^\d{4,12}$/.test(newPin)) { notify('PIN harus 4-12 digit angka'); return; }
-  
-  const salt = generateStableld('SALT'); 
-  const hash = await hashOwnerPin(newPin, salt);
-  
-  ownerPin = newPin; 
-  ownerPinSalt = salt; 
-  ownerPinHash = hash;
-  
-  if(db && appld) {
-    try {
-      await window.firebaseModules.setDoc(
-        window.firebaseModules.doc(db,'artifacts', appld,'public','data','settings','config'), 
-        {ownerPinHash:hash, ownerPinSalt:salt, ownerPin:null}, 
-        {merge:true}
-      );
-    } catch(err) {
-      console.error('Sync PIN err:',err);
-    }
-  }
-  
-  await logAudit('OWNER_PIN_CHANGED');
-  document.getElementById('setting-new-pin').value = '';
-  notify('PIN Owner berhasil diubah & diamankan ke Cloud!');
-}
+      const input = document.getElementById('setting-new-pin');
+      const newPin = input.value.trim();
+      if (!/^\d{4,12}$/.test(newPin)) {
+        notify('PIN harus 4-12 digit angka');
+        return;
+      }
 
+      // Owner PIN is a global credential. It must be written to Firestore;
+      // unlike POS transactions, changing the PIN is never an offline operation.
+      const ref = getOwnerPinConfigRef();
+      if (!ref) {
+        notify('Cloud Firebase belum siap. PIN belum diubah.');
+        return;
+      }
+
+      const salt = generateStableId('SALT');
+      const hash = await hashOwnerPin(newPin, salt);
+
+      try {
+        await window.firebaseModules.setDoc(ref, {
+          ownerPinHash: hash,
+          ownerPinSalt: salt,
+          ownerPin: null,
+          ownerPinUpdatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        // Only update the in-memory credentials AFTER Firestore confirms success.
+        ownerPinHash = hash;
+        ownerPinSalt = salt;
+        ownerPin = '';
+
+        try { await logAudit('OWNER_PIN_CHANGED'); }
+        catch (auditErr) { console.debug('PIN audit log failed:', auditErr); }
+
+        input.value = '';
+        notify('PIN Owner berhasil diubah & tersimpan di Cloud.');
+      } catch (err) {
+        console.error('Save Owner PIN err:', err);
+        notify('Gagal menyimpan PIN ke Cloud. PIN lama tetap aktif.');
+      }
+    }
 
     function openModalAddProduct() {
       renderCategoryDropdown();
@@ -2922,7 +3012,7 @@ if (count === 0) {
             <div style="text-align:right;">
               <strong style="color:${t.status==='void'?'#94a3b8':'var(--primary)'}; font-size:13px; display:block; text-decoration:${t.status==='void'?'line-through':'none'};">${formatRp(t.total)}</strong>
               <span style="font-size:9px; color:#94a3b8;">${t.status==='void'?'VOID / DIBATALKAN':'Ketuk untuk rincian ➔'}</span>
-              ${isOwnerAuthenticated && t.status!=='void' ? `<button onclick="event.stopPropagation();voidTransaction('${t.id}')" style="margin-top:4px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:5px;padding:3px 6px;font-size:8px;font-weight:bold;">VOID</button>` : ''}
+              ${isOwnerAuthenticated && t.status!=='void' ? `<button onclick="event.stopPropagation();voidTransaction('${t.id}')" style="margin-top:5px;border:1px solid #ef4444;background:#fee2e2;color:#b91c1c;border-radius:6px;padding:5px 9px;font-size:9px;font-weight:800;cursor:pointer;">VOID TRANSAKSI</button>` : ''}
             </div>
           </div>`;
         }).join('');
@@ -2947,14 +3037,29 @@ if (count === 0) {
 
     async function voidTransaction(txId) {
       if (!isOwnerAuthenticated) { notify('Akses Owner diperlukan untuk void transaksi.'); return; }
-      const tx=transactions.find(t=>t.id===txId);
-      if(!tx||tx.status==='void') return;
-      if(!confirm(`Void transaksi ${txId}? Transaksi tidak akan dihapus, hanya dibatalkan.`)) return;
-      const fsId=tx.firestoreId;
-      tx.status='void'; tx.voidedAt=new Date().toISOString(); tx.voidedBy=userId||'owner';
-      if(fsId) await cloudUpdateDocument('transactions',fsId,{status:'void',voidedAt:tx.voidedAt,voidedBy:tx.voidedBy});
-      else { const fresh=transactions.find(x=>x.id===txId); if(fresh) await cloudAddDocument('transactions',fresh); }
-      renderHistory(); renderReports(); await logAudit('SALE_VOIDED',{transactionId:txId}); notify('Transaksi berhasil di-void.');
+      const tx = transactions.find(t => t.id === txId);
+      if (!tx || tx.status === 'void') return;
+      if (!confirm(`Void transaksi ${txId}? Transaksi tidak akan dihapus, hanya dibatalkan.`)) return;
+
+      const previousStatus = tx.status || 'paid';
+      const voidedAt = new Date().toISOString();
+      tx.status = 'void';
+      tx.voidedAt = voidedAt;
+      tx.voidedBy = userId || 'owner';
+
+      let synced = true;
+      if (tx.firestoreId) {
+        synced = await cloudUpdateDocument('transactions', tx.firestoreId, {
+          status: 'void', voidedAt, voidedBy: tx.voidedBy
+        });
+      } else {
+        await cloudAddDocument('transactions', tx);
+      }
+
+      renderHistory();
+      if (typeof renderReports === 'function') renderReports();
+      await logAudit('SALE_VOIDED', { transactionId: txId, previousStatus });
+      notify(synced ? 'Transaksi berhasil di-void.' : 'Transaksi di-void lokal; menunggu sinkronisasi cloud.');
     }
 
     function openReceiptHistory(txId) {
