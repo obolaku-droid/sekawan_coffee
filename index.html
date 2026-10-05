@@ -1335,9 +1335,10 @@
     let activeBills = [];
 
     let storeConfig = JSON.parse(localStorage.getItem('moka_store_config')) || { name: 'Sekawan Coffee', logo: '' };
-    let ownerPin = localStorage.getItem('moka_owner_pin') || '123456';
-    let ownerPinHash = localStorage.getItem('moka_owner_pin_hash') || '';
-    let ownerPinSalt = localStorage.getItem('moka_owner_pin_salt') || '';
+    // Hapus penggunaan localStorage untuk PIN
+let ownerPin = '123456'; // PIN default sementara jika belum sinkron
+let ownerPinHash = '';
+let ownerPinSalt = '';
     let isOwnerAuthenticated = false;
     let currentShift = JSON.parse(localStorage.getItem('moka_active_shift')) || null;
 
@@ -1465,8 +1466,13 @@
       fm.onSnapshot(configDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.ownerPinHash && data.ownerPinSalt) { ownerPinHash=data.ownerPinHash; ownerPinSalt=data.ownerPinSalt; localStorage.setItem('moka_owner_pin_hash',ownerPinHash); localStorage.setItem('moka_owner_pin_salt',ownerPinSalt); }
-          if (data.ownerPin && !ownerPinHash) { ownerPin=data.ownerPin; localStorage.setItem('moka_owner_pin',ownerPin); }
+          if (data.ownerPinHash && data.ownerPinSalt) { 
+  ownerPinHash = data.ownerPinHash;
+  ownerPinSalt = data.ownerPinSalt;
+}
+if (data.ownerPin && !ownerPinHash) { 
+  ownerPin = data.ownerPin;
+}
           if (data.name) storeConfig.name = data.name;
           if (data.logo) storeConfig.logo = data.logo;
           if (data.name || data.logo) { localStorage.setItem('moka_store_config', JSON.stringify(storeConfig)); applyStoreConfig(); }
@@ -1938,14 +1944,18 @@
     }
 
     async function ensureOwnerPinHash() {
-      if (ownerPinHash && ownerPinSalt) return;
-      const salt = ownerPinSalt || generateStableId('SALT');
-      const hash = await hashOwnerPin(ownerPin || '123456', salt);
-      ownerPinSalt=salt; ownerPinHash=hash;
-      localStorage.setItem('moka_owner_pin_salt', salt);
-      localStorage.setItem('moka_owner_pin_hash', hash);
-      if (db && appId) { try { await window.firebaseModules.setDoc(window.firebaseModules.doc(db,'artifacts',appId,'public','data','settings','config'), {ownerPinHash:hash,ownerPinSalt:salt,ownerPin:null}, {merge:true}); } catch(e){ console.debug('PIN migration failed',e); } }
-    }
+  if (ownerPinHash && ownerPinSalt) return;
+  const salt = ownerPinSalt || generateStableld('SALT');
+  const hash = await hashOwnerPin(ownerPin || '123456', salt);
+  ownerPinSalt = salt; 
+  ownerPinHash = hash;
+  
+  if (db && appld) { 
+    try { 
+      await window.firebaseModules.setDoc(window.firebaseModules.doc(db,'artifacts', appld,'public','data', 'settings','config'), {ownerPinHash:hash, ownerPinSalt:salt, ownerPin:null}, {merge:true}); 
+    } catch(e){ console.debug('PIN migration failed',e); } 
+  }
+}
     async function verifyOwnerPin() {
       const pin = document.getElementById('owner-pin-input').value.trim();
       if (ownerPinHash && ownerPinSalt) {
@@ -1985,15 +1995,32 @@
       notify('Profil & Logo disinkronkan ke Cloud');
     }
     async function saveNewPin() {
-      const newPin=document.getElementById('setting-new-pin').value.trim();
-      if (!/^\d{4,12}$/.test(newPin)) { notify('PIN harus 4-12 digit angka'); return; }
-      const salt=generateStableId('SALT'); const hash=await hashOwnerPin(newPin,salt);
-      ownerPin=newPin; ownerPinSalt=salt; ownerPinHash=hash;
-      localStorage.setItem('moka_owner_pin_salt',salt); localStorage.setItem('moka_owner_pin_hash',hash); localStorage.removeItem('moka_owner_pin');
-      if(db&&appId){try{await window.firebaseModules.setDoc(window.firebaseModules.doc(db,'artifacts',appId,'public','data','settings','config'),{ownerPinHash:hash,ownerPinSalt:salt,ownerPin:null},{merge:true});}catch(err){console.error('Sync PIN err:',err);}}
-      await logAudit('OWNER_PIN_CHANGED');
-      document.getElementById('setting-new-pin').value=''; notify('PIN Owner berhasil diubah & diamankan!');
+  const newPin = document.getElementById('setting-new-pin').value.trim();
+  if (!/^\d{4,12}$/.test(newPin)) { notify('PIN harus 4-12 digit angka'); return; }
+  
+  const salt = generateStableld('SALT'); 
+  const hash = await hashOwnerPin(newPin, salt);
+  
+  ownerPin = newPin; 
+  ownerPinSalt = salt; 
+  ownerPinHash = hash;
+  
+  if(db && appld) {
+    try {
+      await window.firebaseModules.setDoc(
+        window.firebaseModules.doc(db,'artifacts', appld,'public','data','settings','config'), 
+        {ownerPinHash:hash, ownerPinSalt:salt, ownerPin:null}, 
+        {merge:true}
+      );
+    } catch(err) {
+      console.error('Sync PIN err:',err);
     }
+  }
+  
+  await logAudit('OWNER_PIN_CHANGED');
+  document.getElementById('setting-new-pin').value = '';
+  notify('PIN Owner berhasil diubah & diamankan ke Cloud!');
+}
 
 
     function openModalAddProduct() {
