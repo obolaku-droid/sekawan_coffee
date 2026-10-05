@@ -1282,7 +1282,7 @@
 </div>
   
   <script>
-    const SEKAWAN_MENU_VERSION = 'v10_cloud';
+    const SEKAWAN_MENU_VERSION = 'v11_hardened_cashbasis';
     const INITIAL_CATEGORIES = [
       { id: 'basic_espresso', name: 'Basic Espresso' },
       { id: 'kopi_susu', name: 'Kopi Susu' },
@@ -1336,6 +1336,8 @@
 
     let storeConfig = JSON.parse(localStorage.getItem('moka_store_config')) || { name: 'Sekawan Coffee', logo: '' };
     let ownerPin = localStorage.getItem('moka_owner_pin') || '123456';
+    let ownerPinHash = localStorage.getItem('moka_owner_pin_hash') || '';
+    let ownerPinSalt = localStorage.getItem('moka_owner_pin_salt') || '';
     let isOwnerAuthenticated = false;
     let currentShift = JSON.parse(localStorage.getItem('moka_active_shift')) || null;
 
@@ -1357,14 +1359,80 @@
     ];
 
     let db, auth, appId, userId;
+    const DATA_SCHEMA_VERSION = 2;
+    const OFFLINE_QUEUE_KEY = 'sekawan_offline_queue_v2';
+    const AUDIT_COLLECTION = 'auditLogs';
 
-    async function initFirebaseSync() {
-      if (typeof window.firebaseModules === 'undefined') {
-        setTimeout(initFirebaseSync, 300);
-        return;
-      }
+    function getOfflineQueue() {
+      try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY)) || []; }
+      catch (_) { return []; }
+    }
+
+    function saveOfflineQueue(queue) {
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    }
+
+    function generateStableId(prefix='ID') {
+      const stamp = Date.now().toString(36).toUpperCase();
+      const rand = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,'').slice(0,8) : Math.random().toString(36).slice(2,10)).toUpperCase();
+      return `${prefix}-${stamp}-${rand}`;
+    }
+
+    function generateTransactionId() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2,'0');
+      const stamp = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+      return `TRX-${stamp}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+    }
+
+    function isValidTransaction(t) {
+      return t && t.status !== 'void' && Number(t.total || 0) >= 0;
+    }
+
+    function addLocalDocument(collectionName, data) {
+      const target = collectionName === 'transactions' ? transactions : (collectionName === 'expenses' ? expenses : null);
+      if (!target) return;
+      const exists = target.some(x => (x.id && data.id && x.id === data.id) || (x.syncId && data.syncId && x.syncId === data.syncId));
+      if (!exists) target.unshift(data);
+      if (collectionName === 'transactions') renderHistory();
+      if (collectionName === 'expenses') renderExpenses();
+    }
+
+    async function flushOfflineQueue() {
+      if (!db || !appId || !navigator.onLine) return;
       const fm = window.firebaseModules;
-      
+      const queue = getOfflineQueue();
+      if (!queue.length) return;
+      const remaining = [];
+      for (const job of queue) {
+        try {
+          if (job.operation === 'set') {
+            const ref = fm.doc(db, 'artifacts', appId, 'public', 'data', job.collection, job.docId);
+            await fm.setDoc(ref, job.data, { merge: true });
+          } else if (job.operation === 'delete') {
+            const ref = fm.doc(db, 'artifacts', appId, 'public', 'data', job.collection, job.docId);
+            await fm.deleteDoc(ref);
+          }
+        } catch (err) {
+          console.debug('Offline sync retry:', err);
+          remaining.push(job);
+        }
+      }
+      saveOfflineQueue(remaining);
+      if (!remaining.length) notify('✅ Data offline berhasil disinkronkan.');
+    }
+
+    async function logAudit(action, details={}) {
+      const data = {
+        id: generateStableId('AUD'), action, details,
+        userId: userId || 'device-session',
+        date: new Date().toISOString()
+      };
+      try { await cloudAddDocument(AUDIT_COLLECTION, data); } catch (e) { console.debug('Audit log failed', e); }
+    }
+    async function initFirebaseSync() {
+      if (typeof window.firebaseModules === 'undefined') { setTimeout(initFirebaseSync, 300); return; }
+      const fm = window.firebaseModules;
       const firebaseConfig = {
         apiKey: "AIzaSyDJh92j0KvdBNKC2UScD-XocXF7Et2hlNU",
         authDomain: "sekawan-coffee-pos.firebaseapp.com",
@@ -1374,37 +1442,20 @@
         appId: "1:235587090471:web:badc675e8b70454a133602"
       };
       appId = 'sekawan-coffee-production';
-
-      const app = fm.initializeApp(firebaseConfig);
-      db = fm.getFirestore(app);
-      auth = fm.getAuth(app);
-
       try {
+        const app = fm.initializeApp(firebaseConfig);
+        db = fm.getFirestore(app);
+        auth = fm.getAuth(app);
         await fm.signInAnonymously(auth);
         userId = auth.currentUser?.uid || 'device-session';
         notify('Live Cloud Sync Aktif');
         setupRealtimeListeners();
-        
-        // --- AUTO-SYNC KETIKA KONEKSI PULIH ---
-        window.addEventListener('online', async () => {
-          notify('🌐 Internet pulih! Menyinkronkan data offline...');
-          // Sinkronisasi data transaksi offline jika ada
-          const offlineTx = JSON.parse(localStorage.getItem('moka_offline_tx')) || [];
-          if (offlineTx.length > 0 && db && appId) {
-            for (const t of offlineTx) {
-              try {
-                await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), t);
-              } catch(e) { console.debug('Sync offline item err:', e); }
-            }
-            localStorage.removeItem('moka_offline_tx');
-            notify('✅ Semua data offline berhasil disinkronkan ke Cloud!');
-          }
-        });
-
-      } catch (err) {
-        console.warn('Cloud sync error:', err);
-      }
+        window.addEventListener('online', flushOfflineQueue);
+        await flushOfflineQueue();
+      } catch (err) { console.warn('Cloud sync error:', err); }
     }
+
+
 
     function setupRealtimeListeners() {
       if (!db || !appId) return;
@@ -1414,7 +1465,8 @@
       fm.onSnapshot(configDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.ownerPin) { ownerPin = data.ownerPin; localStorage.setItem('moka_owner_pin', ownerPin); }
+          if (data.ownerPinHash && data.ownerPinSalt) { ownerPinHash=data.ownerPinHash; ownerPinSalt=data.ownerPinSalt; localStorage.setItem('moka_owner_pin_hash',ownerPinHash); localStorage.setItem('moka_owner_pin_salt',ownerPinSalt); }
+          if (data.ownerPin && !ownerPinHash) { ownerPin=data.ownerPin; localStorage.setItem('moka_owner_pin',ownerPin); }
           if (data.name) storeConfig.name = data.name;
           if (data.logo) storeConfig.logo = data.logo;
           if (data.name || data.logo) { localStorage.setItem('moka_store_config', JSON.stringify(storeConfig)); applyStoreConfig(); }
@@ -1487,42 +1539,56 @@
         if (document.getElementById('tab-meja').classList.contains('active')) renderMeja();
       }, (err) => console.debug('Bills sync err:', err));
     }
-
     async function cloudAddDocument(collectionName, data) {
       const fm = window.firebaseModules;
-      
-      // Periksa status koneksi internet atau ketersediaan database
+      const payload = { ...data, schemaVersion: DATA_SCHEMA_VERSION, updatedAt: new Date().toISOString() };
+      const docId = String(payload.syncId || payload.id || generateStableId(collectionName.slice(0,3).toUpperCase()));
+      payload.syncId = docId;
       if (!db || !appId || !navigator.onLine) {
-        console.warn('Jaringan offline, menyimpan ke antrean lokal...');
-        
-        // Simpan ke memori lokal sementara
-        if (collectionName === 'transactions') {
-          transactions.unshift(data);
-          localStorage.setItem('moka_offline_tx', JSON.stringify(transactions));
-          renderHistory();
-        } else if (collectionName === 'expenses') {
-          expenses.unshift(data);
-          localStorage.setItem('moka_offline_exp', JSON.stringify(expenses));
-          renderExpenses();
-        }
-        
-        notify('📶 Mode Offline: Disimpan di perangkat lokal');
-        return;
+        const queue = getOfflineQueue();
+        queue.push({ operation:'set', collection:collectionName, docId, data:payload, queuedAt:new Date().toISOString() });
+        saveOfflineQueue(queue);
+        addLocalDocument(collectionName, payload);
+        notify('📶 Offline: data masuk antrean sinkronisasi');
+        return payload;
       }
-
       try {
-        await fm.addDoc(fm.collection(db, 'artifacts', appId, 'public', 'data', collectionName), data);
+        const ref = fm.doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId);
+        await fm.setDoc(ref, payload, { merge: true });
+        return payload;
       } catch (err) {
-        console.error('Cloud save failed, fallback to local:', err);
-        // Fallback jika gagal kirim ke cloud saat koneksi tidak stabil
-        if (collectionName === 'transactions') {
-          transactions.unshift(data);
-          localStorage.setItem('moka_offline_tx', JSON.stringify(transactions));
-          renderHistory();
-        }
-        notify('⚠️ Gagal ke Cloud, disimpan lokal sementara');
+        console.error('Cloud save failed:', err);
+        const queue = getOfflineQueue();
+        if (!queue.some(q => q.collection===collectionName && q.docId===docId && q.operation==='set')) queue.push({ operation:'set', collection:collectionName, docId, data:payload, queuedAt:new Date().toISOString() });
+        saveOfflineQueue(queue);
+        addLocalDocument(collectionName, payload);
+        notify('⚠️ Cloud gagal, data disimpan sementara');
+        return payload;
       }
     }
+
+    async function cloudUpdateDocument(collectionName, docId, patch) {
+      const fm = window.firebaseModules;
+      const data = { ...patch, updatedAt: new Date().toISOString() };
+      if (!db || !appId || !navigator.onLine) {
+        const queue = getOfflineQueue();
+        queue.push({ operation:'set', collection:collectionName, docId, data, queuedAt:new Date().toISOString() });
+        saveOfflineQueue(queue);
+        return true;
+      }
+      try {
+        await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId), data, { merge:true });
+        return true;
+      } catch (err) {
+        console.error('Cloud update failed:', err);
+        const queue = getOfflineQueue();
+        queue.push({ operation:'set', collection:collectionName, docId, data, queuedAt:new Date().toISOString() });
+        saveOfflineQueue(queue);
+        return false;
+      }
+    }
+
+
 
     async function cloudSyncBills() {
       if (!db || !appId) return;
@@ -1675,7 +1741,7 @@
 
     function openModalCloseShift() {
       if (!currentShift) return;
-      const shiftTx = transactions.filter(t => new Date(t.date) >= new Date(currentShift.startTime));
+      const shiftTx = transactions.filter(t => new Date(t.date) >= new Date(currentShift.startTime) && isValidTransaction(t));
       const shiftExp = expenses.filter(e => (e.type === 'kas' || e.type === 'bayar_hutang') && new Date(e.date) >= new Date(currentShift.startTime));
       
       const totalOmzet = shiftTx.reduce((acc, t) => acc + t.total, 0);
@@ -1816,6 +1882,9 @@
         return;
       }
 
+      const closure = { id: generateStableId('SHIFT'), cashier: currentShift.cashier, startTime: currentShift.startTime, endTime: new Date().toISOString(), initialCash: currentShift.initialCash || 0, expectedCash: expected, actualCash: actual, variance: diff, varianceReason: reasonNode.value.trim() || '' };
+      await cloudAddDocument('shiftClosures', closure);
+      await logAudit('SHIFT_CLOSED', closure);
       currentShift = null;
       localStorage.removeItem('moka_active_shift');
       
@@ -1862,15 +1931,41 @@
       if (name === 'meja') renderMeja();
     }
 
-    function verifyOwnerPin() {
+    async function hashOwnerPin(pin, salt) {
+      const data = new TextEncoder().encode(`${salt}:${pin}`);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+
+    async function ensureOwnerPinHash() {
+      if (ownerPinHash && ownerPinSalt) return;
+      const salt = ownerPinSalt || generateStableId('SALT');
+      const hash = await hashOwnerPin(ownerPin || '123456', salt);
+      ownerPinSalt=salt; ownerPinHash=hash;
+      localStorage.setItem('moka_owner_pin_salt', salt);
+      localStorage.setItem('moka_owner_pin_hash', hash);
+      if (db && appId) { try { await window.firebaseModules.setDoc(window.firebaseModules.doc(db,'artifacts',appId,'public','data','settings','config'), {ownerPinHash:hash,ownerPinSalt:salt,ownerPin:null}, {merge:true}); } catch(e){ console.debug('PIN migration failed',e); } }
+    }
+    async function verifyOwnerPin() {
       const pin = document.getElementById('owner-pin-input').value.trim();
-      if (pin === ownerPin) {
-        isOwnerAuthenticated = true;
+      if (ownerPinHash && ownerPinSalt) {
+        const candidate = await hashOwnerPin(pin, ownerPinSalt);
+        if (candidate === ownerPinHash) {
+          isOwnerAuthenticated=true;
+          document.getElementById('privasi-lock-view').classList.add('hidden');
+          document.getElementById('privasi-content-view').classList.remove('hidden');
+          renderReports(); return;
+        }
+      } else if (pin === ownerPin) {
+        await ensureOwnerPinHash();
+        isOwnerAuthenticated=true;
         document.getElementById('privasi-lock-view').classList.add('hidden');
         document.getElementById('privasi-content-view').classList.remove('hidden');
-        renderReports();
-      } else { notify('PIN Salah!'); }
+        renderReports(); return;
+      }
+      notify('PIN Salah!');
     }
+
 
     
 
@@ -1889,22 +1984,17 @@
       }
       notify('Profil & Logo disinkronkan ke Cloud');
     }
-
     async function saveNewPin() {
-      const newPin = document.getElementById('setting-new-pin').value.trim();
-      if (newPin.length < 4) { notify('PIN min 4 digit'); return; }
-      ownerPin = newPin;
-      localStorage.setItem('moka_owner_pin', ownerPin);
-
-      if (db && appId) {
-        const fm = window.firebaseModules;
-        try {
-          await fm.setDoc(fm.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { ownerPin }, { merge: true });
-        } catch (err) { console.error('Sync PIN err:', err); }
-      }
-      document.getElementById('setting-new-pin').value = '';
-      notify('PIN Owner berhasil diubah & disinkronkan!');
+      const newPin=document.getElementById('setting-new-pin').value.trim();
+      if (!/^\d{4,12}$/.test(newPin)) { notify('PIN harus 4-12 digit angka'); return; }
+      const salt=generateStableId('SALT'); const hash=await hashOwnerPin(newPin,salt);
+      ownerPin=newPin; ownerPinSalt=salt; ownerPinHash=hash;
+      localStorage.setItem('moka_owner_pin_salt',salt); localStorage.setItem('moka_owner_pin_hash',hash); localStorage.removeItem('moka_owner_pin');
+      if(db&&appId){try{await window.firebaseModules.setDoc(window.firebaseModules.doc(db,'artifacts',appId,'public','data','settings','config'),{ownerPinHash:hash,ownerPinSalt:salt,ownerPin:null},{merge:true});}catch(err){console.error('Sync PIN err:',err);}}
+      await logAudit('OWNER_PIN_CHANGED');
+      document.getElementById('setting-new-pin').value=''; notify('PIN Owner berhasil diubah & diamankan!');
     }
+
 
     function openModalAddProduct() {
       renderCategoryDropdown();
@@ -2266,103 +2356,71 @@
     }
 
     // 1. Membuka Modal Checkout dengan Checkbox Split Bill
-    function openModalCheckout() {
-      // PERBAIKAN: Gunakan destructuring
-      const { sum, count } = calculateCartTotal();
-      
-      if (count === 0) {
-        notify('Keranjang kosong!');
-        return;
-      }
-     
 
-      let htmlItems = '';
-      Object.entries(cart).forEach(([varId, qty]) => {
-        const d = getVariantDetails(varId);
-        const subtotal = d.v.price * qty;
-        htmlItems += `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:11px; background:white; padding:4px 6px; border-radius:4px; border:1px solid var(--border);">
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; flex:1;">
-              <input type="checkbox" class="split-checkbox" value="${varId}" data-price="${d.v.price}" data-maxqty="${qty}" checked onchange="updateSplitTotal()">
-              <span>${d.p.name} (${qty}x)</span>
-            </label>
-            <strong style="color:var(--text);">${formatRp(subtotal)}</strong>
-          </div>`;
-      });
-
-      document.getElementById('split-bill-items-container').innerHTML = htmlItems;
-      selectPaymentMethod('tunai');
-      updateSplitTotal();
-
-      document.getElementById('checkout-order-type-display').textContent = orderType === 'dine_in' ? `Meja: ${orderTable}` : 'Takeaway';
-      document.getElementById('modal-checkout').classList.add('show');
-    }
 
 // Fungsi untuk memilih metode pembayaran (Tunai / Non-Tunai)
-    function selectPaymentMethod(method) {
-      document.getElementById('payment-method-hidden').value = method;
-      const btnTunai = document.getElementById('btn-method-tunai');
-      const btnNontunai = document.getElementById('btn-method-nontunai');
-      const tunaiFields = document.getElementById('tunai-fields-container');
 
-      if (method === 'tunai') {
-        btnTunai.style.background = 'var(--primary-light)'; btnTunai.style.color = 'var(--primary)'; btnTunai.style.border = '2px solid var(--primary)';
-        btnNontunai.style.background = '#f8fafc'; btnNontunai.style.color = 'var(--text-muted)'; btnNontunai.style.border = '1px solid var(--border)';
-        tunaiFields.style.display = 'block';
-      } else {
-        btnNontunai.style.background = 'var(--primary-light)'; btnNontunai.style.color = 'var(--primary)'; btnNontunai.style.border = '2px solid var(--primary)';
-        btnTunai.style.background = '#f8fafc'; btnTunai.style.color = 'var(--text-muted)'; btnTunai.style.border = '1px solid var(--border)';
-        tunaiFields.style.display = 'none';
-      }
-    }
     
     // 2. Menghitung ulang total tagihan berdasarkan item yang dicentang
-    function updateSplitTotal() {
-      const checkboxes = document.querySelectorAll('.split-checkbox');
-      let total = 0;
-      checkboxes.forEach(cb => {
-        if (cb.checked) {
-          const price = Number(cb.getAttribute('data-price'));
-          const maxQty = Number(cb.getAttribute('data-maxqty'));
-          total += price * maxQty;
-        }
+    function getSelectedSplitCart() {
+      const selected = {};
+      document.querySelectorAll('.split-checkbox').forEach(cb => {
+        const qtyInput = document.querySelector(`.split-qty[data-var-id="${cb.value}"]`);
+        const maxQty = Number(cb.getAttribute('data-maxqty')) || 0;
+        let qty = qtyInput ? Number(qtyInput.value) : maxQty;
+        qty = Math.max(0, Math.min(maxQty, Number.isFinite(qty) ? qty : 0));
+        if (qtyInput) qtyInput.value = qty || 1;
+        cb.checked = cb.checked && qty > 0;
+        if (cb.checked && qty > 0) selected[cb.value] = qty;
       });
+      return selected;
+    }
 
+    function updateSplitTotal() {
+      const selected = getSelectedSplitCart();
+      let total = 0;
+      Object.entries(selected).forEach(([varId, qty]) => {
+        const cb = document.querySelector(`.split-checkbox[value="${varId}"]`);
+        total += Number(cb?.getAttribute('data-price') || 0) * qty;
+        const sub = document.querySelector(`.split-qty[data-var-id="${varId}"]`)?.parentElement?.querySelector('.split-subtotal');
+        if (sub) sub.textContent = formatRp(Number(cb?.getAttribute('data-price') || 0) * qty);
+      });
       document.getElementById('checkout-bill-total').textContent = formatRp(total);
       const cashInput = document.getElementById('cash-given-input');
-      cashInput.value = total.toLocaleString('id-ID');
+      if (document.activeElement !== cashInput) cashInput.value = total.toLocaleString('id-ID');
       calcChange();
     }
 
+
+
+
+
+
     // Fungsi untuk membuka modal checkout
     function openModalCheckout() {
-      const sum = calculateCartTotal();
-      if (sum === 0) {
-        notify('Keranjang masih kosong!');
-        return;
-      }
-
+      const { sum, count } = calculateCartTotal();
+      if (count === 0) { notify('Keranjang masih kosong!'); return; }
       let htmlItems = '';
       Object.entries(cart).forEach(([varId, qty]) => {
         const d = getVariantDetails(varId);
-        const subtotal = d.v.price * qty;
         htmlItems += `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:11px; background:white; padding:4px 6px; border-radius:4px; border:1px solid var(--border);">
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; font-size:11px; background:white; padding:6px; border-radius:4px; border:1px solid var(--border);">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; flex:1; min-width:0;">
               <input type="checkbox" class="split-checkbox" value="${varId}" data-price="${d.v.price}" data-maxqty="${qty}" checked onchange="updateSplitTotal()">
-              <span>${d.p.name} (${qty}x)</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.p.name} (${qty}x)</span>
             </label>
-            <strong style="color:var(--text);">${formatRp(subtotal)}</strong>
+            <input type="number" class="split-qty" value="${qty}" min="1" max="${qty}" data-var-id="${varId}" data-price="${d.v.price}" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:5px;text-align:center;" onchange="updateSplitTotal()" oninput="updateSplitTotal()">
+            <strong class="split-subtotal" style="color:var(--text);white-space:nowrap;">${formatRp(d.v.price * qty)}</strong>
           </div>`;
       });
-
       document.getElementById('split-bill-items-container').innerHTML = htmlItems;
       selectPaymentMethod('tunai');
       updateSplitTotal();
-
       document.getElementById('checkout-order-type-display').textContent = orderType === 'dine_in' ? `Meja: ${orderTable}` : 'Takeaway';
       document.getElementById('modal-checkout').classList.add('show');
     }
+
+
 
     // Fungsi untuk menutup modal checkout
     function closeModalCheckout() {
@@ -2443,143 +2501,56 @@ if (count === 0) {
     }
     // 4. Konfirmasi Pembayaran & Split Bill (Disempurnakan)
     async function confirmPayment() {
-      const checkboxes = document.querySelectorAll('.split-checkbox');
-      let paidCart = {};
+      const paidCart = getSelectedSplitCart();
       let sum = 0;
-
-      // 1. Kumpulkan item yang HANYA dicentang
-      checkboxes.forEach(cb => {
-        if (cb.checked) {
-          const varId = cb.value;
-          const qty = Number(cb.getAttribute('data-maxqty'));
-          paidCart[varId] = qty;
-          sum += Number(cb.getAttribute('data-price')) * qty;
-        }
+      Object.entries(paidCart).forEach(([varId, qty]) => {
+        const cb = document.querySelector(`.split-checkbox[value="${varId}"]`);
+        sum += Number(cb?.getAttribute('data-price') || 0) * qty;
       });
-
-      if (sum === 0) {
-        notify('Pilih minimal 1 menu yang akan dibayar!');
-        return;
-      }
-
+      if (sum <= 0) { notify('Pilih minimal 1 menu yang akan dibayar!'); return; }
       const method = document.getElementById('payment-method-hidden').value;
-      let cash = sum;
-      let change = 0;
-
+      let cash = sum, change = 0;
       if (method === 'tunai') {
         cash = parseNumeric(document.getElementById('cash-given-input').value);
         if (cash < sum) { notify('Uang tunai kurang!'); return; }
         change = cash - sum;
       }
-
-      // 2. Catat transaksi ke laporan
-      const txId = 'TRX-' + String(transactions.length + 1).padStart(3, '0');
       const itemsList = Object.entries(paidCart).map(([varId, qty]) => {
         const d = getVariantDetails(varId);
-        return { name: d.p.name, price: d.v.price, qty: qty };
+        return { name:d.p.name, variant:d.v.name, variantId:varId, price:d.v.price, qty };
       });
-      
-      const tx = { 
-        id: txId, 
-        date: new Date().toISOString(), 
-        items: itemsList, 
-        total: sum, 
-        cash: cash, 
-        change: change, 
-        orderType: orderType, 
-        table: orderTable, 
-        paymentMethod: method 
+      const tx = {
+        id: generateTransactionId(), syncId: generateStableId('TX'), date:new Date().toISOString(),
+        items:itemsList, total:sum, cash, change, orderType, table:orderTable,
+        paymentMethod:method, status:'completed', cashier:currentShift?.cashier || 'Kasir'
       };
-
       await cloudAddDocument('transactions', tx);
       lastReceipt = tx;
-
-      // 3. LOGIKA SPLIT BILL PADA MEJA (Agar sisa pesanan berkurang)
       if (orderType === 'dine_in') {
-        // a. Kurangi item di keranjang utama dengan item yang baru saja dibayar
         for (const varId in paidCart) {
-          if (cart[varId]) {
-            cart[varId] -= paidCart[varId];
-            if (cart[varId] <= 0) {
-              delete cart[varId]; // Hapus item dari keranjang jika qty 0 (lunas)
-            }
-          }
+          if (cart[varId]) { cart[varId] -= paidCart[varId]; if (cart[varId] <= 0) delete cart[varId]; }
         }
-
-        // b. Hitung ulang sisa pesanan di keranjang
-        const { count, sum } = calculateCartTotal();
-        const existingBillIndex = activeBills.findIndex(b => b.id === currentBillId || b.table === orderTable);
-
-        if (count === 0) {
-          // c. Jika semua lunas (keranjang kosong), HAPUS MEJA
-          if (existingBillIndex !== -1) {
-            const billToDel = activeBills[existingBillIndex];
-            
-            // Hapus dari database (jika terkoneksi Firebase)
-            if (typeof db !== 'undefined' && db && typeof appId !== 'undefined') {
-              const fm = window.firebaseModules;
-              if (billToDel.firestoreId && fm) {
-                const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billToDel.firestoreId);
-                fm.deleteDoc(docRef);
-              }
+        if (currentBillId) {
+          if (Object.keys(cart).length === 0) {
+            const billDoc = activeBills.find(b=>b.id===currentBillId);
+            if (billDoc?.firestoreId && db && appId) {
+              try { await window.firebaseModules.deleteDoc(window.firebaseModules.doc(db,'artifacts',appId,'public','data','bills',billDoc.firestoreId)); } catch(e){ console.debug(e); }
             }
-            // Hapus dari memori lokal aplikasi
-            activeBills.splice(existingBillIndex, 1);
-          }
-          // Reset status kasir
-          orderType = 'takeaway';
-          orderTable = null;
-          currentBillId = null;
-          
-        } else {
-          // d. Jika MASIH ADA SISA pesanan, perbarui data meja dengan keranjang yang baru
-          if (existingBillIndex !== -1) {
-            activeBills[existingBillIndex].cartData = { ...cart };
-            activeBills[existingBillIndex].total = sum;
-            
-            // Perbarui ke database
-            const billToUpdate = activeBills[existingBillIndex];
-            if (typeof db !== 'undefined' && db && typeof appId !== 'undefined') {
-              const fm = window.firebaseModules;
-              if (billToUpdate.firestoreId && fm) {
-                const docRef = fm.doc(db, 'artifacts', appId, 'public', 'data', 'bills', billToUpdate.firestoreId);
-                // Gunakan updateDoc atau setDoc sesuai struktur Anda
-                if (fm.updateDoc) {
-                   fm.updateDoc(docRef, { cartData: { ...cart }, total: sum });
-                } else if (fm.setDoc) {
-                   fm.setDoc(docRef, billToUpdate);
-                }
-              }
+            activeBills = activeBills.filter(b=>b.id!==currentBillId);
+          } else {
+            const billDoc = activeBills.find(b=>b.id===currentBillId);
+            if (billDoc?.firestoreId && db && appId) {
+              await cloudUpdateDocument('bills', billDoc.firestoreId, { cartData:{...cart}, updatedAt:new Date().toISOString() });
             }
           }
         }
       }
-      // 4. Tutup modal & Reset tampilan (JIKA ERROR TERJADI SEBELUMNYA, BARIS INI GAGAL JALAN)
-      if(typeof closeModalCheckout === 'function') closeModalCheckout();
-      else document.getElementById('modal-checkout').classList.remove('show');
-      
-      resetCartAndSession();
-      updateBadgeMeja(); 
-      switchTab('meja');
-      
-      // 5. Tampilkan Struk Pembayaran (Versi Aman)
-      try {
-        if (document.getElementById('receipt-tx-id')) document.getElementById('receipt-tx-id').textContent = tx.id;
-        
-        // Sesuaikan dengan ID struk lama Anda
-        if (document.getElementById('receipt-time-display')) document.getElementById('receipt-time-display').textContent = new Date(tx.date).toLocaleString('id-ID');
-        if (document.getElementById('receipt-items-container')) document.getElementById('receipt-items-container').innerHTML = tx.items.map(i => `<div style="display:flex; justify-content:space-between;"><span>${i.name} x${i.qty}</span><span>${formatRp(i.price * i.qty)}</span></div>`).join('');
-        if (document.getElementById('receipt-sum-total')) document.getElementById('receipt-sum-total').textContent = formatRp(tx.total);
-        if (document.getElementById('receipt-sum-cash')) document.getElementById('receipt-sum-cash').textContent = formatRp(tx.cash);
-        if (document.getElementById('receipt-sum-change')) document.getElementById('receipt-sum-change').textContent = formatRp(tx.change);
-        
-        // Buka modal sukses
-        if (document.getElementById('modal-success')) document.getElementById('modal-success').classList.add('show');
-        else if (document.getElementById('modal-receipt')) document.getElementById('modal-receipt').classList.add('show');
-      } catch (err) {
-        console.error('Error saat menampilkan struk:', err);
-      }   
+      closeModalCheckout(); showSuccessReceipt(tx);
+      resetCartAndSession(); updateBadgeMeja(); renderHistory();
+      await logAudit('SALE_COMPLETED',{transactionId:tx.id,total:tx.total,paymentMethod:tx.paymentMethod});
     }
+
+
     function showSuccessReceipt(tx) {
       document.getElementById('receipt-tx-id').textContent = '#' + tx.id;
       document.getElementById('receipt-time-display').textContent = new Date(tx.date).toLocaleString('id-ID');
@@ -2919,8 +2890,9 @@ if (count === 0) {
               <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">🕒 ${timeStr}</div>
             </div>
             <div style="text-align:right;">
-              <strong style="color:var(--primary); font-size:13px; display:block;">${formatRp(t.total)}</strong>
-              <span style="font-size:9px; color:#94a3b8;">Ketuk untuk rincian ➔</span>
+              <strong style="color:${t.status==='void'?'#94a3b8':'var(--primary)'}; font-size:13px; display:block; text-decoration:${t.status==='void'?'line-through':'none'};">${formatRp(t.total)}</strong>
+              <span style="font-size:9px; color:#94a3b8;">${t.status==='void'?'VOID / DIBATALKAN':'Ketuk untuk rincian ➔'}</span>
+              ${isOwnerAuthenticated && t.status!=='void' ? `<button onclick="event.stopPropagation();voidTransaction('${t.id}')" style="margin-top:4px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:5px;padding:3px 6px;font-size:8px;font-weight:bold;">VOID</button>` : ''}
             </div>
           </div>`;
         }).join('');
@@ -2941,6 +2913,18 @@ if (count === 0) {
       });
 
       document.getElementById('history-container').innerHTML = html;
+    }
+
+    async function voidTransaction(txId) {
+      if (!isOwnerAuthenticated) { notify('Akses Owner diperlukan untuk void transaksi.'); return; }
+      const tx=transactions.find(t=>t.id===txId);
+      if(!tx||tx.status==='void') return;
+      if(!confirm(`Void transaksi ${txId}? Transaksi tidak akan dihapus, hanya dibatalkan.`)) return;
+      const fsId=tx.firestoreId;
+      tx.status='void'; tx.voidedAt=new Date().toISOString(); tx.voidedBy=userId||'owner';
+      if(fsId) await cloudUpdateDocument('transactions',fsId,{status:'void',voidedAt:tx.voidedAt,voidedBy:tx.voidedBy});
+      else { const fresh=transactions.find(x=>x.id===txId); if(fresh) await cloudAddDocument('transactions',fresh); }
+      renderHistory(); renderReports(); await logAudit('SALE_VOIDED',{transactionId:txId}); notify('Transaksi berhasil di-void.');
     }
 
     function openReceiptHistory(txId) {
@@ -3000,7 +2984,7 @@ if (count === 0) {
 
         const activeDebts = [];
         // PERBAIKAN: Hitung sisa hutang dari tanggal nota yang PALING TUA ke yang TERBARU
-        const hutangList = expenses.filter(e => e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date));
+        const hutangList = expenses.filter(e => e.status !== 'void' && e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date));
 
         hutangList.forEach(e => {
           const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
@@ -3062,11 +3046,12 @@ if (count === 0) {
 
       if (!note || amount <= 0) return;
 
-      const data = { id: 'EXP-' + Date.now(), type, supplier, note, amount, date: new Date().toISOString() };
+      const data = { id: generateStableId('EXP'), type, supplier, note, amount, date: new Date().toISOString(), status:'active' };
       
       if (type === 'bayar_hutang' && debtId) data.debtId = debtId;
 
       await cloudAddDocument('expenses', data);
+      await logAudit(type === 'hutang' ? 'DEBT_CREATED' : (type === 'bayar_hutang' ? 'DEBT_PAYMENT' : 'EXPENSE_CREATED'), {expenseId:data.id, type, amount, supplier});
       closeModalExpense(); renderExpenses(); notify('Disimpan ke Cloud');
     }
 
@@ -3086,7 +3071,7 @@ if (count === 0) {
 
       // 2. Hitung sisa tiap hutang spesifik secara Kronologis (Tua ke Baru)
       let debtBalances = {};
-      const hutangList = expenses.filter(e => e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date));
+      const hutangList = expenses.filter(e => e.status !== 'void' && e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date));
 
       hutangList.forEach(e => {
         const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
@@ -3117,11 +3102,11 @@ if (count === 0) {
       }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
       // B. Kelompok Pelunasan Hutang
-      let listPelunasan = expenses.filter(e => e.type === 'bayar_hutang')
+      let listPelunasan = expenses.filter(e => e.status !== 'void' && e.type === 'bayar_hutang')
                                   .sort((a, b) => new Date(b.date) - new Date(a.date));
 
       // C. Kelompok Kas Keluar (Operasional)
-      let listKas = expenses.filter(e => e.type === 'kas')
+      let listKas = expenses.filter(e => e.status !== 'void' && e.type === 'kas')
                             .sort((a, b) => new Date(b.date) - new Date(a.date));
 
       // Fungsi Pembantu untuk Merender Kotak Rincian Transaksi
@@ -3262,126 +3247,65 @@ if (count === 0) {
         </svg>
       `;
     }
-
     function renderReports() {
       const now = new Date();
-      let prev = new Date();
-      let isCurr = (d) => false;
-      let isPrev = (d) => false;
-
+      let isCurr = () => false, isPrev = () => false;
       const pdfBtn = document.getElementById('btn-download-pdf');
-
       if (currentLapPeriod === 'harian') {
-        prev.setDate(now.getDate() - 1);
-        isCurr = (d) => isSameDay(d, now);
-        isPrev = (d) => isSameDay(d, prev);
-        document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Hari Ini)";
-        if(pdfBtn) pdfBtn.textContent = 'Download PDF Harian';
+        const prev = new Date(now); prev.setDate(now.getDate()-1);
+        isCurr=d=>isSameDay(d,now); isPrev=d=>isSameDay(d,prev);
+        document.getElementById('lap-title-omzet').textContent='Total Omzet Penjualan (Hari Ini)'; if(pdfBtn) pdfBtn.textContent='Download PDF Harian';
       } else if (currentLapPeriod === 'mingguan') {
-        prev.setDate(now.getDate() - 7);
-        isCurr = (d) => (now - d) / (1000 * 60 * 60 * 24) <= 7 && d <= now;
-        isPrev = (d) => { const diff = (now - d) / (1000 * 60 * 60 * 24); return diff > 7 && diff <= 14; };
-        document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (7 Hari Terakhir)";
-        if(pdfBtn) pdfBtn.textContent = 'Download PDF Mingguan';
+        isCurr=d=>(now-d)/(86400000)<=7 && d<=now; isPrev=d=>{const x=(now-d)/86400000;return x>7&&x<=14;};
+        document.getElementById('lap-title-omzet').textContent='Total Omzet Penjualan (7 Hari Terakhir)'; if(pdfBtn) pdfBtn.textContent='Download PDF Mingguan';
       } else if (currentLapPeriod === 'bulanan') {
-        prev.setMonth(now.getMonth() - 1);
-        isCurr = (d) => isSameMonth(d, now);
-        isPrev = (d) => isSameMonth(d, prev);
-        document.getElementById('lap-title-omzet').textContent = "Total Omzet Penjualan (Bulan Ini)";
-        if(pdfBtn) pdfBtn.textContent = 'Download PDF Bulanan';
-      } else if (currentLapPeriod === 'custom') {
-        const startVal = document.getElementById('date-start').value;
-        const endVal = document.getElementById('date-end').value;
-        if (!startVal || !endVal) { notify('Pilih tanggal awal & akhir dulu!'); return; }
-        
-        const startDate = new Date(startVal); startDate.setHours(0,0,0,0);
-        const endDate = new Date(endVal); endDate.setHours(23,59,59,999);
-        
-        isCurr = (d) => d >= startDate && d <= endDate;
-        isPrev = (d) => false; 
-        
-        document.getElementById('lap-title-omzet').textContent = `Periode: ${startDate.toLocaleDateString('id-ID')} - ${endDate.toLocaleDateString('id-ID')}`;
-        if(pdfBtn) pdfBtn.textContent = 'Download PDF Custom';
-      }
-
-      const currTx = transactions.filter(t => isCurr(new Date(t.date)));
-      const prevTx = transactions.filter(t => isPrev(new Date(t.date)));
-
-      const currOmzet = currTx.reduce((acc, t) => acc + t.total, 0);
-      const prevOmzet = prevTx.reduce((acc, t) => acc + t.total, 0);
-
-      // --- PERHITUNGAN TOTAL HPP (OPSIONAL) ---
-      let currTotalHpp = 0;
-      currTx.forEach(t => {
-        t.items.forEach(i => {
-          let unitCost = 0;
-          for (const p of products) {
-            const v = p.variants.find(va => va.name.toLowerCase() === i.name.toLowerCase() || p.name.toLowerCase() === i.name.toLowerCase());
-            if (v && v.cost) { unitCost = v.cost; break; }
-          }
-          currTotalHpp += (unitCost * i.qty);
-        });
-      });
-
-      let trendHTML = '';
-      if (currentLapPeriod === 'custom') {
-          trendHTML = `<span style="color:#e2e8f0;">🔍 Mode Custom</span>`;
+        isCurr=d=>isSameMonth(d,now); const prev=new Date(now); prev.setMonth(now.getMonth()-1); isPrev=d=>isSameMonth(d,prev);
+        document.getElementById('lap-title-omzet').textContent='Total Omzet Penjualan (Bulan Ini)'; if(pdfBtn) pdfBtn.textContent='Download PDF Bulanan';
       } else {
-          if (prevOmzet === 0 && currOmzet > 0) trendHTML = `<span style="color:#a7f3d0;">▲ Naik 100%</span>`;
-          else if (prevOmzet === 0 && currOmzet === 0) trendHTML = `<span style="color:#e2e8f0;">➖ 0%</span>`;
-          else {
-             const diffPct = ((currOmzet - prevOmzet) / prevOmzet) * 100;
-             if (diffPct > 0) trendHTML = `<span style="color:#a7f3d0;">▲ Naik ${diffPct.toFixed(1)}%</span>`;
-             else if (diffPct < 0) trendHTML = `<span style="color:#fca5a5;">▼ Turun ${Math.abs(diffPct).toFixed(1)}%</span>`;
-             else trendHTML = `<span style="color:#e2e8f0;">➖ Stabil 0%</span>`;
-          }
+        const sv=document.getElementById('date-start').value, ev=document.getElementById('date-end').value;
+        if(!sv||!ev){notify('Pilih tanggal awal & akhir dulu!');return;}
+        const st=new Date(sv);st.setHours(0,0,0,0);const en=new Date(ev);en.setHours(23,59,59,999);
+        isCurr=d=>d>=st&&d<=en; isPrev=()=>false;
+        document.getElementById('lap-title-omzet').textContent=`Periode: ${st.toLocaleDateString('id-ID')} - ${en.toLocaleDateString('id-ID')}`; if(pdfBtn) pdfBtn.textContent='Download PDF Custom';
       }
-      document.getElementById('lap-trend').innerHTML = trendHTML;
-
-      const currExp = expenses.filter(e => isCurr(new Date(e.date)));
-      const currKas = currExp.filter(e => e.type === 'kas' || e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
-      const currHutang = currExp.filter(e => e.type === 'hutang').reduce((acc, e) => acc + e.amount, 0) - currExp.filter(e => e.type === 'bayar_hutang').reduce((acc, e) => acc + e.amount, 0);
-
-      const sumTunai = currTx.filter(t => t.paymentMethod === 'tunai').reduce((acc, t) => acc + t.total, 0);
-      const sumQris = currTx.filter(t => t.paymentMethod === 'nontunai').reduce((acc, t) => acc + t.total, 0);
-      const aov = currTx.length > 0 ? (currOmzet / currTx.length) : 0;
-      const takeawayCount = currTx.filter(t => t.orderType === 'takeaway').length;
-      const takeawayPct = currTx.length > 0 ? ((takeawayCount / currTx.length) * 100).toFixed(0) : 0;
-
-      const itemCounts = {};
-      currTx.forEach(t => { t.items.forEach(i => { itemCounts[i.name] = (itemCounts[i.name] || 0) + i.qty; }); });
-      const topItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-      let topMenuHTML = topItems.length === 0 ? '- Belum ada penjualan' : topItems.map((item, idx) => `<div><strong>${idx+1}.</strong> ${item[0]} (${item[1]}x)</div>`).join('');
-
-      const labaKotor = currOmzet - currTotalHpp;
-      const labaBersihFinal = labaKotor - currKas;
-
-      document.getElementById('lap-omzet').textContent = formatRp(currOmzet);
-      document.getElementById('lap-count').textContent = currTx.length;
-      document.getElementById('lap-laba').textContent = formatRp(labaBersihFinal);
-      document.getElementById('lap-tunai').textContent = formatRp(sumTunai);
-      document.getElementById('lap-qris').textContent = formatRp(sumQris);
-      document.getElementById('lap-kas').textContent = formatRp(currKas);
-      document.getElementById('lap-hutang').textContent = formatRp(currHutang);
-      document.getElementById('lap-aov').textContent = formatRp(Math.round(aov));
-      document.getElementById('lap-takeaway').textContent = takeawayPct + '%';
-      document.getElementById('lap-top-menu').innerHTML = topMenuHTML;
-
-      document.getElementById('profit-sharing-list').innerHTML = PROFIT_SHARING_MEMBERS.map(m => `
-        <div style="display:flex; justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp((Math.max(0, currOmzet - currKas) * m.pct) / 100)}</strong></div>`).join('');
-
-      // Menampilkan Data Shift Kasir Aktif di Kartu Hijau
-      const shiftContainer = document.getElementById('lap-active-shift-container');
-      const shiftDetails = document.getElementById('lap-active-shift-details');
-      if (currentShift) {
-        shiftContainer.style.display = 'block';
-        let startTimeFormatted = new Date(currentShift.startTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        shiftDetails.innerHTML = `👤 ${currentShift.cashier} &nbsp;|&nbsp; 🕒 Masuk: ${startTimeFormatted} WIB &nbsp;|&nbsp; 💰 Modal: ${formatRp(currentShift.initialCash)}`;
-      } else {
-        shiftContainer.style.display = 'none';
-        shiftDetails.innerHTML = '';
-      }
+      const currTx=transactions.filter(t=>isCurr(new Date(t.date))&&isValidTransaction(t));
+      const prevTx=transactions.filter(t=>isPrev(new Date(t.date))&&isValidTransaction(t));
+      const currOmzet=currTx.reduce((a,t)=>a+Number(t.total||0),0), prevOmzet=prevTx.reduce((a,t)=>a+Number(t.total||0),0);
+      let trendHTML='';
+      if(currentLapPeriod==='custom') trendHTML='<span style="color:#e2e8f0;">🔍 Mode Custom</span>';
+      else if(prevOmzet===0&&currOmzet>0) trendHTML='<span style="color:#a7f3d0;">▲ Naik 100%</span>';
+      else if(prevOmzet===0) trendHTML='<span style="color:#e2e8f0;">➖ 0%</span>';
+      else {const pct=((currOmzet-prevOmzet)/prevOmzet)*100;trendHTML=pct>0?`<span style="color:#a7f3d0;">▲ Naik ${pct.toFixed(1)}%</span>`:pct<0?`<span style="color:#fca5a5;">▼ Turun ${Math.abs(pct).toFixed(1)}%</span>`:'<span style="color:#e2e8f0;">➖ Stabil 0%</span>';}
+      document.getElementById('lap-trend').innerHTML=trendHTML;
+      const currExp=expenses.filter(e=>isCurr(new Date(e.date)));
+      const currKas=currExp.filter(e=>e.type==='kas'||e.type==='bayar_hutang').reduce((a,e)=>a+Number(e.amount||0),0);
+      const activeDebtCalc=calculateActiveDebtBalances();
+      const currHutang=activeDebtCalc.total;
+      const sumTunai=currTx.filter(t=>t.paymentMethod==='tunai').reduce((a,t)=>a+t.total,0), sumQris=currTx.filter(t=>t.paymentMethod==='nontunai').reduce((a,t)=>a+t.total,0);
+      const aov=currTx.length?currOmzet/currTx.length:0;
+      const takeawayCount=currTx.filter(t=>t.orderType==='takeaway').length, takeawayPct=currTx.length?((takeawayCount/currTx.length)*100).toFixed(0):0;
+      const itemCounts={}; currTx.forEach(t=>t.items.forEach(i=>{itemCounts[i.name]=(itemCounts[i.name]||0)+Number(i.qty||0);}));
+      const topItems=Object.entries(itemCounts).sort((a,b)=>b[1]-a[1]).slice(0,3);
+      const topMenuHTML=topItems.length?topItems.map((x,i)=>`<div><strong>${i+1}.</strong> ${x[0]} (${x[1]}x)</div>`).join(''):'- Belum ada penjualan';
+      const labaBersihFinal=currOmzet-currKas;
+      document.getElementById('lap-omzet').textContent=formatRp(currOmzet); document.getElementById('lap-count').textContent=currTx.length;
+      document.getElementById('lap-laba').textContent=formatRp(labaBersihFinal); document.getElementById('lap-tunai').textContent=formatRp(sumTunai); document.getElementById('lap-qris').textContent=formatRp(sumQris);
+      document.getElementById('lap-kas').textContent=formatRp(currKas); document.getElementById('lap-hutang').textContent=formatRp(currHutang); document.getElementById('lap-aov').textContent=formatRp(Math.round(aov)); document.getElementById('lap-takeaway').textContent=takeawayPct+'%'; document.getElementById('lap-top-menu').innerHTML=topMenuHTML;
+      document.getElementById('profit-sharing-list').innerHTML=PROFIT_SHARING_MEMBERS.map(m=>`<div style="display:flex;justify-content:space-between;"><span>${m.name} (${m.pct}%)</span><strong>${formatRp(Math.max(0,labaBersihFinal)*m.pct/100)}</strong></div>`).join('');
+      const shiftContainer=document.getElementById('lap-active-shift-container'), shiftDetails=document.getElementById('lap-active-shift-details');
+      if(currentShift){shiftContainer.style.display='block';shiftDetails.innerHTML=`👤 ${currentShift.cashier} &nbsp;|&nbsp; 🕒 Masuk: ${new Date(currentShift.startTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})} WIB &nbsp;|&nbsp; 💰 Modal: ${formatRp(currentShift.initialCash)}`;}else{shiftContainer.style.display='none';shiftDetails.innerHTML='';}
     }
+
+    function calculateActiveDebtBalances() {
+      const paymentsByDebt={}, fallback={};
+      expenses.forEach(e=>{if(e.type==='bayar_hutang'){if(e.debtId)paymentsByDebt[e.debtId]=(paymentsByDebt[e.debtId]||0)+Number(e.amount||0);else fallback[e.supplier]=(fallback[e.supplier]||0)+Number(e.amount||0);}});
+      let total=0;
+      const debts=expenses.filter(e=>e.type==='hutang').sort((a,b)=>new Date(a.date)-new Date(b.date));
+      debts.forEach(e=>{const key=e.id||e.firestoreId;let paid=paymentsByDebt[key]||0;if(fallback[e.supplier]>0&&paid<e.amount){const d=Math.min(e.amount-paid,fallback[e.supplier]);paid+=d;fallback[e.supplier]-=d;}total+=Math.max(0,Number(e.amount||0)-paid);});
+      return {total};
+    }
+
+
 
     function shareWhatsAppReport() {
       const title = document.getElementById('lap-title-omzet').textContent;
@@ -3434,7 +3358,7 @@ if (count === 0) {
         titlePdf += ' PERIODE CUSTOM';
       }
 
-      const mTx = transactions.filter(t => isCurr(new Date(t.date)));
+      const mTx = transactions.filter(t => isCurr(new Date(t.date)) && isValidTransaction(t));
       const mExp = expenses.filter(e => isCurr(new Date(e.date)));
       
       const omzet = mTx.reduce((acc, t) => acc + t.total, 0);
@@ -3471,7 +3395,7 @@ if (count === 0) {
       let totalSisaHutang = 0;
       
       // Sisa Hutang tetap mengambil dari global time karena ini adalah "Kewajiban aktif saat ini"
-      expenses.filter(e => e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(e => {
+      expenses.filter(e => e.status !== 'void' && e.type === 'hutang').sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(e => {
         const key = e.firestoreId || e.id || `${e.supplier}_${e.note}_${e.amount}_${e.date}`;
         let paid = debtPayments[key] || 0;
         
@@ -3529,32 +3453,8 @@ if (count === 0) {
         </style></head><body>
           <div class="page"><div class="header"><h1>${titlePdf}</h1><p><b>${storeConfig.name}</b> | Periode: ${periodText}</p></div>
             <div class="summary-cards"><div class="card"><div class="card-title">OMZET PERIODE INI</div><div class="card-value">${formatRp(omzet)}</div><div class="card-sub">${totalPorsi} porsi terjual</div></div><div class="card"><div class="card-title">TOTAL BIAYA</div><div class="card-value">${formatRp(totalBiaya)}</div><div class="card-sub">${rasioBiaya}% dari omzet</div></div><div class="card"><div class="card-title">LABA BERSIH</div><div class="card-value">${formatRp(labaBersih)}</div><div class="card-sub">Margin ${marginLaba}%</div></div><div class="card" style="border-top-color: #d84315;"><div class="card-title">HUTANG SUPPLIER</div><div class="card-value" style="color: #d84315;">${formatRp(sisaHutang)}</div><div class="card-sub">Belum lunas keseluruhan</div></div></div>
-            <h2>1. Laporan Penjualan per Produk</h2><table><tr><th>Produk</th><th>Harga (Rp)</th><th>HPP (Rp)</th><th>Margin %</th><th>Terjual</th><th>Omzet (Rp)</th><th>% Omzet</th></tr>
-      ${topItems.length === 0 ? '<tr><td colspan="7" style="text-align:center;">Belum ada data penjualan pada periode ini</td></tr>' : topItems.map((item, idx) => { 
-          const pName = item[0];
-          const pData = item[1];
-          const pQty = pData.qty || 1;
-          const pOmzet = pData.omzet || 0;
-          const avgPrice = Math.round(pOmzet / pQty);
-          
-          let hpp = 0;
-          if (typeof products !== 'undefined') {
-              for (let p of products) {
-                  if (p.name === pName) { hpp = p.hpp || 0; break; }
-                  if (p.variants) {
-                      let v = p.variants.find(vx => pName.includes(vx.name) && pName.includes(p.name));
-                      if (v) { hpp = v.hpp || 0; break; }
-                  }
-              }
-          }
-          
-          const marginPct = avgPrice > 0 ? Math.round(((avgPrice - hpp) / avgPrice) * 100) : 0;
-          const pct = omzet > 0 ? ((pOmzet / omzet) * 100).toFixed(1) : 0; 
-          const bgClass = idx % 2 === 0 ? 'background:#f4f4f5;' : ''; 
-          
-          return '<tr style="' + bgClass + '"><td>' + pName + '</td><td>' + formatRp(avgPrice) + '</td><td>' + formatRp(hpp) + '</td><td><b style="color:#0d9488;">' + marginPct + '%</b></td><td>' + pQty + '</td><td>' + formatRp(pOmzet) + '</td><td>' + pct + '%</td></tr>'; 
-      }).join('')}
-      </table>
+            <h2>1. Laporan Penjualan per Produk</h2><table><tr><th>Produk</th><th>Harga Rata-rata (Rp)</th><th>Terjual</th><th>Omzet (Rp)</th><th>% Omzet</th></tr>
+      ${topItems.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Belum ada data penjualan pada periode ini</td></tr>' : topItems.map((item, idx) => { const pName=item[0]; const pData=item[1]; const pQty=pData.qty||1; const pOmzet=pData.omzet||0; const avgPrice=Math.round(pOmzet/pQty); const pct=omzet>0?((pOmzet/omzet)*100).toFixed(1):0; const bgClass=idx%2===0?'background:#f4f4f5;':''; return '<tr style="'+bgClass+'"><td>'+pName+'</td><td>'+formatRp(avgPrice)+'</td><td>'+pQty+'</td><td>'+formatRp(pOmzet)+'</td><td>'+pct+'%</td></tr>'; }).join('')}</table>
           </div>
           <div class="page"><h2>2. Laporan Laba Rugi Sederhana</h2><table><tr><th>Keterangan</th><th>Jumlah (Rp)</th><th>% Omzet</th></tr><tr><td><b>Omzet Penjualan</b></td><td><b>${formatRp(omzet)}</b></td><td><b>100%</b></td></tr><tr><td colspan="3" class="row-title">Total Biaya Operasional / Kas Keluar:</td></tr>${rincianKasKeluarHTML}<tr><td colspan="3" class="row-title">Pelunasan Hutang:</td></tr>${rincianPelunasanHTML}<tr style="background:#efebe9; border-top:2px solid #d7ccc8;"><td><b>TOTAL BIAYA KESELURUHAN</b></td><td><b>(${formatRp(totalBiaya)})</b></td><td><b>${rasioBiaya}%</b></td></tr><tr><td><b>LABA BERSIH</b></td><td><b>${formatRp(labaBersih)}</b></td><td><b>${marginLaba}%</b></td></tr></table>
             <h2>3. Posisi Hutang Supplier Tertunda (Global)</h2><table><tr><th>Tanggal</th><th>Supplier</th><th>Item / Keterangan</th><th>Sisa Hutang (Rp)</th></tr>${activeHutangHTML}<tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr></table><p style="font-size:10px; color:#5d4037;">*Catatan: Rincian tabel hutang ini membaca keseluruhan kewajiban aktif yang belum terlunasi hingga detik ini (tidak dibatasi oleh periode cetak di atas).</p>
