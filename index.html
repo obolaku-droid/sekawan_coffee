@@ -3529,9 +3529,32 @@ if (count === 0) {
         </style></head><body>
           <div class="page"><div class="header"><h1>${titlePdf}</h1><p><b>${storeConfig.name}</b> | Periode: ${periodText}</p></div>
             <div class="summary-cards"><div class="card"><div class="card-title">OMZET PERIODE INI</div><div class="card-value">${formatRp(omzet)}</div><div class="card-sub">${totalPorsi} porsi terjual</div></div><div class="card"><div class="card-title">TOTAL BIAYA</div><div class="card-value">${formatRp(totalBiaya)}</div><div class="card-sub">${rasioBiaya}% dari omzet</div></div><div class="card"><div class="card-title">LABA BERSIH</div><div class="card-value">${formatRp(labaBersih)}</div><div class="card-sub">Margin ${marginLaba}%</div></div><div class="card" style="border-top-color: #d84315;"><div class="card-title">HUTANG SUPPLIER</div><div class="card-value" style="color: #d84315;">${formatRp(sisaHutang)}</div><div class="card-sub">Belum lunas keseluruhan</div></div></div>
-            <h2>1. Laporan Penjualan per Produk</h2><table><tr><th>Produk</th><th>Harga (Rp)</th><th>Terjual</th><th>Omzet (Rp)</th><th>% Omzet</th></tr>
-              ${topItems.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Belum ada data penjualan pada periode ini</td></tr>' : topItems.map((item, idx) => { const pct = omzet > 0 ? ((item[1].omzet / omzet) * 100).toFixed(1) : 0; const darkClass = idx === 0 ? 'dark' : ''; return `<tr><td>${item[0]}</td><td>${formatRp(item[1].price)}</td><td>${item[1].qty}</td><td>${formatRp(item[1].omzet)}</td><td>${pct}% <div class="bar-container"><div class="bar-fill ${darkClass}" style="width:${pct}%"></div></div></td></tr>`; }).join('')}
-            </table>
+            <h2>1. Laporan Penjualan per Produk</h2><table><tr><th>Produk</th><th>Harga (Rp)</th><th>HPP (Rp)</th><th>Margin %</th><th>Terjual</th><th>Omzet (Rp)</th><th>% Omzet</th></tr>
+      ${topItems.length === 0 ? '<tr><td colspan="7" style="text-align:center;">Belum ada data penjualan pada periode ini</td></tr>' : topItems.map((item, idx) => { 
+          const pName = item[0];
+          const pData = item[1];
+          const pQty = pData.qty || 1;
+          const pOmzet = pData.omzet || 0;
+          const avgPrice = Math.round(pOmzet / pQty);
+          
+          let hpp = 0;
+          if (typeof products !== 'undefined') {
+              for (let p of products) {
+                  if (p.name === pName) { hpp = p.hpp || 0; break; }
+                  if (p.variants) {
+                      let v = p.variants.find(vx => pName.includes(vx.name) && pName.includes(p.name));
+                      if (v) { hpp = v.hpp || 0; break; }
+                  }
+              }
+          }
+          
+          const marginPct = avgPrice > 0 ? Math.round(((avgPrice - hpp) / avgPrice) * 100) : 0;
+          const pct = omzet > 0 ? ((pOmzet / omzet) * 100).toFixed(1) : 0; 
+          const bgClass = idx % 2 === 0 ? 'background:#f4f4f5;' : ''; 
+          
+          return '<tr style="' + bgClass + '"><td>' + pName + '</td><td>' + formatRp(avgPrice) + '</td><td>' + formatRp(hpp) + '</td><td><b style="color:#0d9488;">' + marginPct + '%</b></td><td>' + pQty + '</td><td>' + formatRp(pOmzet) + '</td><td>' + pct + '%</td></tr>'; 
+      }).join('')}
+      </table>
           </div>
           <div class="page"><h2>2. Laporan Laba Rugi Sederhana</h2><table><tr><th>Keterangan</th><th>Jumlah (Rp)</th><th>% Omzet</th></tr><tr><td><b>Omzet Penjualan</b></td><td><b>${formatRp(omzet)}</b></td><td><b>100%</b></td></tr><tr><td colspan="3" class="row-title">Total Biaya Operasional / Kas Keluar:</td></tr>${rincianKasKeluarHTML}<tr><td colspan="3" class="row-title">Pelunasan Hutang:</td></tr>${rincianPelunasanHTML}<tr style="background:#efebe9; border-top:2px solid #d7ccc8;"><td><b>TOTAL BIAYA KESELURUHAN</b></td><td><b>(${formatRp(totalBiaya)})</b></td><td><b>${rasioBiaya}%</b></td></tr><tr><td><b>LABA BERSIH</b></td><td><b>${formatRp(labaBersih)}</b></td><td><b>${marginLaba}%</b></td></tr></table>
             <h2>3. Posisi Hutang Supplier Tertunda (Global)</h2><table><tr><th>Tanggal</th><th>Supplier</th><th>Item / Keterangan</th><th>Sisa Hutang (Rp)</th></tr>${activeHutangHTML}<tr style="background:#efebe9; font-weight:bold;"><td colspan="3">Total Hutang Tertunda</td><td>${formatRp(sisaHutang)}</td></tr></table><p style="font-size:10px; color:#5d4037;">*Catatan: Rincian tabel hutang ini membaca keseluruhan kewajiban aktif yang belum terlunasi hingga detik ini (tidak dibatasi oleh periode cetak di atas).</p>
