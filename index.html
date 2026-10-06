@@ -1338,6 +1338,7 @@
     let products = JSON.parse(localStorage.getItem('moka_p')) || INITIAL_PRODUCTS;
     let maxTableNumber = Number(localStorage.getItem('moka_max_table')) || 12;
     let customTables = JSON.parse(localStorage.getItem('moka_custom_tables')) || [];
+    let assets = JSON.parse(localStorage.getItem('moka_assets')) || [];
     
     let transactions = [];
     let expenses = [];
@@ -3969,9 +3970,6 @@ let selectedActiveBillId = null;
       const message = "Halo Kak POLEM, saya ingin bertanya mengenai aplikasi POS Coffee by POLEM yang sedang saya gunakan.";
       window.open(`https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(message)}`, '_blank');
     }
-
-    // Variabel state untuk menyimpan data aset
-    let assets = JSON.parse(localStorage.getItem('moka_assets')) || [];
 
     // Fungsi untuk memperbarui fungsi switch sub-menu di Area Owner
     function switchPrivasiSub(sub) {
