@@ -3916,7 +3916,10 @@ let selectedActiveBillId = null;
       if (!targetTableStr) return;
 
       const targetTableNum = Number(targetTableStr);
-      const targetBill = otherOccupiedBills.find(b => b.table === targetTableNum);
+
+const targetBill = otherOccupiedBills.find(
+  b => Number(b.table) === targetTableNum
+);
 
       if (!targetBill) {
         notify('Meja tujuan tidak ditemukan atau tidak terisi!');
