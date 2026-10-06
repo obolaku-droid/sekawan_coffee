@@ -664,8 +664,16 @@
           <span>Lisensi & Bantuan</span>
         </button>
       </div>
-      <!-- Tombol Koneksi Printer di Menu Navigasi -->
+      <!-- Modul Printer Thermal Bluetooth: UI khusus printer -->
 <div style="padding: 15px; border-top: 1px solid var(--border); margin-top: 5px;">
+  <div style="font-size:10px; font-weight:800; color:#475569; margin-bottom:6px;">PRINTER THERMAL BLUETOOTH</div>
+  <div style="display:flex; gap:6px; margin-bottom:7px;">
+    <select id="printer-paper-width" onchange="setPrinterPaperWidth(this.value)" style="flex:1; border:1px solid #cbd5e1; border-radius:7px; padding:7px 8px; font-size:11px; background:#fff; color:#0f172a;">
+      <option value="58">Kertas 58 mm</option>
+      <option value="80">Kertas 80 mm</option>
+    </select>
+    <button id="btn-test-printer" onclick="testBluetoothPrinter()" style="background:#e2e8f0; color:#0f172a; border:1px solid #cbd5e1; padding:7px 9px; border-radius:7px; font-size:10px; font-weight:800; cursor:pointer;">🖨️ Test</button>
+  </div>
   <button id="btn-connect-printer" onclick="connectBluetoothPrinter()" style="width: 100%; background:#0f172a; color:white; padding:10px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:8px;">
     🔌 <span id="printer-status-text">Printer: Disconnect</span>
   </button>
@@ -2715,254 +2723,417 @@ if (count === 0) {
 
     // ==========================================
     // SISTEM PRINTER THERMAL BLUETOOTH (ESC/POS)
+    // MODUL PRINTER SAJA - v13
     // ==========================================
     let btDevice = null;
     let btCharacteristic = null;
+    let btPrinterService = null;
+    let printerPaperWidth = '58';
+    let printerWriteBusy = false;
 
-    // Fungsi untuk menangani saat printer terputus (mati / di luar jangkauan)
-    function onDisconnected(event) {
-      btDevice = null;
-      btCharacteristic = null;
-      notify('⚠️ Printer terputus atau di luar jangkauan!');
-      
-      // Kembalikan tampilan tombol global ke mode awal
-      const btnPrinter = document.getElementById('btn-connect-printer');
-      if(btnPrinter) {
-         btnPrinter.style.background = '#0f172a'; // warna gelap (disconnect)
-         document.getElementById('printer-status-text').textContent = 'Printer: Disconnect';
-      }
+    // Profil kertas: jumlah karakter aman per baris untuk font ESC/POS standar.
+    const PRINTER_PROFILES = {
+      '58': { mm: 58, chars: 32, bodyWidthMm: 48 },
+      '80': { mm: 80, chars: 48, bodyWidthMm: 72 }
+    };
+
+    function getPrinterProfile() {
+      return PRINTER_PROFILES[printerPaperWidth] || PRINTER_PROFILES['58'];
     }
 
-    // 1. Fungsi Mencari & Menyambungkan Printer Bluetooth
-    async function connectBluetoothPrinter() {
+    function loadPrinterPaperWidth() {
       try {
-        notify('Mencari printer Bluetooth...');
-        
-        const device = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [
-        '000018f0-0000-1000-8000-00805f9b34fb', // Standar printer
-        'e7810a71-73ae-499d-8c15-faa9aef0c3f2', 
-        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-        '0000ff00-0000-1000-8000-00805f9b34fb', // Vendor spesifik (sering dipakai 58mm)
-        '0000ffe0-0000-1000-8000-00805f9b34fb', 
-        '0000fff0-0000-1000-8000-00805f9b34fb',
-        '0000ae30-0000-1000-8000-00805f9b34fb'  
-      ]
-    });
+        const saved = localStorage.getItem('moka_printer_paper_width');
+        printerPaperWidth = (saved === '80' || saved === '58') ? saved : '58';
+      } catch (_) {
+        printerPaperWidth = '58';
+      }
+      const select = document.getElementById('printer-paper-width');
+      if (select) select.value = printerPaperWidth;
+    }
 
-        // Tautkan event listener gattserverdisconnected ke device
-        device.addEventListener('gattserverdisconnected', onDisconnected);
+    function setPrinterPaperWidth(value) {
+      printerPaperWidth = (value === '80') ? '80' : '58';
+      try { localStorage.setItem('moka_printer_paper_width', printerPaperWidth); } catch (_) {}
+      notify(`📄 Ukuran printer diatur ke ${getPrinterProfile().mm} mm.`);
+    }
 
-        const server = await device.gatt.connect();
-        const services = await server.getPrimaryServices();
-        let characteristic = null;
-
-        for (const service of services) {
-          const characteristics = await service.getCharacteristics();
-          for (const char of characteristics) {
-            if (char.properties.write || char.properties.writeWithoutResponse) {
-              characteristic = char;
-              break;
-            }
-          }
-          if (characteristic) break;
-        }
-
-        if (characteristic) {
-          btDevice = device;
-          btCharacteristic = characteristic;
-          notify('✅ Printer Berhasil Terhubung!');
-          
-          const btnPrinter = document.getElementById('btn-connect-printer');
-          if(btnPrinter) {
-             btnPrinter.style.background = '#10b981'; // warna hijau (success)
-             document.getElementById('printer-status-text').textContent = 'Terhubung';
-          }
-        } else {
-          notify('❌ Gagal menemukan jalur data printer.');
-        }
-      } catch (error) {
-        console.error(error);
-        notify('Koneksi printer dibatalkan/gagal.');
+    function updatePrinterUI(connected, label) {
+      const btn = document.getElementById('btn-connect-printer');
+      const status = document.getElementById('printer-status-text');
+      if (!btn || !status) return;
+      if (connected) {
+        btn.style.background = '#10b981';
+        status.textContent = label || 'Terhubung';
+      } else {
+        btn.style.background = '#0f172a';
+        status.textContent = label || 'Printer: Disconnect';
       }
     }
 
-    // 2. Fungsi Cetak Struk (Mendukung Bluetooth & Fallback Web)
+    function onDisconnected() {
+      // Pertahankan btDevice agar bisa reconnect tanpa memilih ulang bila browser masih mengizinkan.
+      btCharacteristic = null;
+      btPrinterService = null;
+      updatePrinterUI(false, 'Printer: Disconnect');
+      notify('⚠️ Printer terputus. Tekan tombol printer untuk reconnect.');
+    }
+
+    async function findWritableCharacteristic(server) {
+      const services = await server.getPrimaryServices();
+      for (const service of services) {
+        const characteristics = await service.getCharacteristics();
+        // Prioritaskan characteristic yang mendukung writeWithoutResponse, lalu write.
+        const noResponse = characteristics.find(c => c.properties && c.properties.writeWithoutResponse);
+        if (noResponse) return { service, characteristic: noResponse };
+        const withResponse = characteristics.find(c => c.properties && c.properties.write);
+        if (withResponse) return { service, characteristic: withResponse };
+      }
+      return null;
+    }
+
+    async function connectKnownBluetoothPrinter(device) {
+      if (!device || !device.gatt) throw new Error('Perangkat printer tidak memiliki GATT.');
+      if (!device.gatt.connected) await device.gatt.connect();
+      const found = await findWritableCharacteristic(device.gatt);
+      if (!found) throw new Error('Characteristic write printer tidak ditemukan.');
+      btDevice = device;
+      btPrinterService = found.service;
+      btCharacteristic = found.characteristic;
+      if (!btDevice.__mokaDisconnectBound) {
+        btDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        btDevice.__mokaDisconnectBound = true;
+      }
+      updatePrinterUI(true, `Terhubung: ${device.name || 'Printer'}`);
+      return true;
+    }
+
+    // Mencari & menyambungkan printer Bluetooth. Jika printer yang sama masih dikenal browser,
+    // fungsi ini akan mencoba reconnect lebih dulu; jika tidak, browser menampilkan pemilih perangkat.
+    async function connectBluetoothPrinter() {
+      if (!navigator.bluetooth) {
+        notify('❌ Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome/Edge yang mendukung Bluetooth.');
+        return;
+      }
+      if (printerWriteBusy) {
+        notify('⏳ Printer sedang digunakan. Tunggu proses cetak selesai.');
+        return;
+      }
+
+      try {
+        loadPrinterPaperWidth();
+
+        // Reconnect printer yang sudah pernah terhubung pada sesi ini.
+        if (btDevice && btDevice.gatt && !btDevice.gatt.connected) {
+          notify('🔄 Menghubungkan kembali ke printer...');
+          await connectKnownBluetoothPrinter(btDevice);
+          notify('✅ Printer berhasil reconnect.');
+          return;
+        }
+        if (btDevice && btCharacteristic && btDevice.gatt && btDevice.gatt.connected) {
+          notify('✅ Printer sudah terhubung.');
+          return;
+        }
+
+        notify('Mencari printer Bluetooth...');
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [
+            '000018f0-0000-1000-8000-00805f9b34fb',
+            'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+            '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+            '0000ff00-0000-1000-8000-00805f9b34fb',
+            '0000ffe0-0000-1000-8000-00805f9b34fb',
+            '0000fff0-0000-1000-8000-00805f9b34fb',
+            '0000ae30-0000-1000-8000-00805f9b34fb'
+          ]
+        });
+        await connectKnownBluetoothPrinter(device);
+        notify(`✅ Printer ${device.name || ''} berhasil terhubung.`.trim());
+      } catch (error) {
+        console.error('Bluetooth printer connection error:', error);
+        btCharacteristic = null;
+        btPrinterService = null;
+        updatePrinterUI(false, 'Printer: Disconnect');
+        if (error && error.name === 'NotFoundError') {
+          notify('Koneksi printer dibatalkan.');
+        } else {
+          notify('❌ Gagal menghubungkan printer. Pastikan printer menyala dan Bluetooth aktif.');
+        }
+      }
+    }
+
+    async function reconnectBluetoothPrinter() {
+      if (!btDevice) {
+        await connectBluetoothPrinter();
+        return;
+      }
+      try {
+        notify('🔄 Reconnect printer...');
+        await connectKnownBluetoothPrinter(btDevice);
+        notify('✅ Printer berhasil reconnect.');
+      } catch (error) {
+        console.error('Bluetooth printer reconnect error:', error);
+        btCharacteristic = null;
+        btPrinterService = null;
+        updatePrinterUI(false, 'Printer: Disconnect');
+        notify('❌ Reconnect gagal. Silakan pilih printer kembali.');
+      }
+    }
+
+    function ensurePrinterConnected() {
+      return !!(btDevice && btDevice.gatt && btDevice.gatt.connected && btCharacteristic);
+    }
+
+    // Semua cetakan Bluetooth melewati fungsi ini agar ukuran chunk dan metode write konsisten.
+    async function writeEscPosData(data) {
+      if (!ensurePrinterConnected()) throw new Error('Printer Bluetooth belum terhubung.');
+      if (printerWriteBusy) throw new Error('Printer sedang mencetak.');
+      printerWriteBusy = true;
+      try {
+        // 20 byte aman untuk BLE characteristic yang memakai MTU minimum.
+        const CHUNK_SIZE = 20;
+        const DELAY_MS = btCharacteristic.properties && btCharacteristic.properties.writeWithoutResponse ? 8 : 2;
+        for (let offset = 0; offset < data.length; offset += CHUNK_SIZE) {
+          if (!ensurePrinterConnected()) throw new Error('Printer terputus saat mencetak.');
+          const chunk = data.slice(offset, offset + CHUNK_SIZE);
+          if (btCharacteristic.properties && btCharacteristic.properties.writeWithoutResponse && typeof btCharacteristic.writeValueWithoutResponse === 'function') {
+            await btCharacteristic.writeValueWithoutResponse(chunk);
+          } else if (btCharacteristic.properties && btCharacteristic.properties.write && typeof btCharacteristic.writeValueWithResponse === 'function') {
+            await btCharacteristic.writeValueWithResponse(chunk);
+          } else if (typeof btCharacteristic.writeValue === 'function') {
+            await btCharacteristic.writeValue(chunk);
+          } else {
+            throw new Error('Characteristic printer tidak memiliki metode write yang didukung.');
+          }
+          if (DELAY_MS) await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+        }
+      } finally {
+        printerWriteBusy = false;
+      }
+    }
+
+    function escPosText(value) {
+      // Printer thermal umumnya menggunakan code page non-Unicode. Karakter di luar ASCII
+      // diganti agar tidak menghasilkan simbol acak pada printer murah.
+      return String(value ?? '').replace(/[^\x00-\x7F]/g, '');
+    }
+
+    function padRight(text, width) {
+      const s = escPosText(text).slice(0, width);
+      return s + ' '.repeat(Math.max(0, width - s.length));
+    }
+
+    function padLeft(text, width) {
+      const s = escPosText(text).slice(-width);
+      return ' '.repeat(Math.max(0, width - s.length)) + s;
+    }
+
+    function wrapPrinterText(text, width) {
+      const raw = escPosText(text);
+      if (!raw) return [''];
+      const words = raw.split(/\s+/);
+      const lines = [];
+      let line = '';
+      for (const word of words) {
+        if (word.length > width) {
+          if (line) { lines.push(line); line = ''; }
+          for (let i = 0; i < word.length; i += width) lines.push(word.slice(i, i + width));
+          continue;
+        }
+        const candidate = line ? `${line} ${word}` : word;
+        if (candidate.length <= width) line = candidate;
+        else { lines.push(line); line = word; }
+      }
+      if (line) lines.push(line);
+      return lines.length ? lines : [''];
+    }
+
+    function printerSeparator() {
+      return '-'.repeat(getPrinterProfile().chars) + '\n';
+    }
+
+    function buildReceiptEscPos(tx) {
+      const profile = getPrinterProfile();
+      const ESC = '\x1B';
+      const LF = '\x0A';
+      let receipt = '';
+      receipt += ESC + '@';
+      receipt += ESC + 'a' + '\x01';
+      receipt += escPosText(typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE') + LF;
+      receipt += escPosText(tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway') + LF;
+      receipt += printerSeparator();
+      receipt += ESC + 'a' + '\x00';
+      receipt += `No   : ${escPosText(tx.id)}${LF}`;
+      receipt += `Tgl  : ${escPosText(new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }))}${LF}`;
+      receipt += `Bayar: ${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'}${LF}`;
+      receipt += printerSeparator();
+
+      tx.items.forEach(i => {
+        wrapPrinterText(i.name, profile.chars).forEach(line => { receipt += line + LF; });
+        const qtyPrice = `${i.qty}x ${formatRp(i.price)}`;
+        const subtotal = formatRp(i.price * i.qty);
+        const gap = Math.max(1, profile.chars - qtyPrice.length - subtotal.length);
+        receipt += qtyPrice + ' '.repeat(gap) + subtotal + LF;
+      });
+
+      receipt += printerSeparator();
+      receipt += `Total  : ${padLeft(formatRp(tx.total), Math.max(1, profile.chars - 9))}${LF}`;
+      if (tx.paymentMethod === 'tunai') {
+        receipt += `Tunai  : ${padLeft(formatRp(tx.cash || tx.total), Math.max(1, profile.chars - 9))}${LF}`;
+        receipt += `Kembali: ${padLeft(formatRp(tx.change || 0), Math.max(1, profile.chars - 9))}${LF}`;
+      }
+      receipt += ESC + 'a' + '\x01';
+      receipt += '\nTerima Kasih\nSilakan Datang Kembali\n\n\n';
+      return new TextEncoder().encode(receipt);
+    }
+
+    function buildCheckerEscPos() {
+      const profile = getPrinterProfile();
+      const ESC = '\x1B';
+      const LF = '\x0A';
+      const orderLabel = orderType === 'dine_in' ? `DINE IN (MEJA ${orderTable})` : 'TAKEAWAY';
+      const now = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+      const cashierName = currentShift ? currentShift.cashier : '-';
+      let receipt = ESC + '@';
+      receipt += ESC + 'a' + '\x01';
+      receipt += escPosText(typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE') + LF;
+      receipt += 'STRUK PESANAN (CHECKER)' + LF;
+      receipt += ESC + 'a' + '\x00';
+      receipt += printerSeparator();
+      receipt += `Tipe : ${escPosText(orderLabel)}${LF}`;
+      receipt += `Tgl  : ${escPosText(now)}${LF}`;
+      receipt += `Kasir: ${escPosText(cashierName)}${LF}`;
+      receipt += printerSeparator();
+      for (const [varId, qty] of Object.entries(cart)) {
+        const d = getVariantDetails(varId);
+        if (d) {
+          wrapPrinterText('- ' + d.p.name, profile.chars).forEach(line => { receipt += line + LF; });
+          receipt += `    x${qty}${LF}`;
+        }
+      }
+      receipt += printerSeparator();
+      receipt += ESC + 'a' + '\x01';
+      receipt += '\n\n\n';
+      return new TextEncoder().encode(receipt);
+    }
+
+    async function testBluetoothPrinter() {
+      if (!ensurePrinterConnected()) {
+        notify('⚠️ Printer belum terhubung. Hubungkan printer terlebih dahulu.');
+        return;
+      }
+      try {
+        const profile = getPrinterProfile();
+        const ESC = '\x1B';
+        const LF = '\x0A';
+        let test = ESC + '@';
+        test += ESC + 'a' + '\x01';
+        test += 'SEKAWAN COFFEE' + LF;
+        test += 'PRINTER TEST PRINT' + LF;
+        test += `KERTAS ${profile.mm} MM${LF}`;
+        test += ESC + 'a' + '\x00';
+        test += printerSeparator();
+        test += `Status : CONNECTED${LF}`;
+        test += `Lebar  : ${profile.chars} karakter${LF}`;
+        test += `Waktu  : ${new Date().toLocaleString('id-ID')}${LF}`;
+        test += printerSeparator();
+        test += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + LF;
+        test += '0123456789' + LF;
+        test += printerSeparator();
+        test += ESC + 'a' + '\x01';
+        test += 'TEST BERHASIL' + LF + '\n\n\n';
+        await writeEscPosData(new TextEncoder().encode(test));
+        notify(`🖨️ Test print ${profile.mm} mm berhasil dikirim.`);
+      } catch (error) {
+        console.error('Printer test error:', error);
+        btCharacteristic = null;
+        updatePrinterUI(false, 'Printer: Disconnect');
+        notify('❌ Test print gagal. Printer mungkin terputus. Coba reconnect.');
+      }
+    }
+
+    // Cetak struk transaksi. Jika Bluetooth terhubung, gunakan ESC/POS; jika tidak,
+    // pertahankan fallback browser yang sudah ada, tetapi ukuran fallback mengikuti pilihan 58/80 mm.
     async function printReceiptThermal(txId) {
       let tx = txId ? transactions.find(t => t.id === txId) : (typeof lastReceipt !== 'undefined' ? lastReceipt : null);
       if (!tx) { notify('Data transaksi tidak ditemukan!'); return; }
+      loadPrinterPaperWidth();
 
-      // Jika printer Bluetooth TERHUBUNG, cetak via Bluetooth (ESC/POS)
-      if (btCharacteristic) {
-        const ESC = "\x1B";
-        const LF = "\x0A";
-        
-        let receipt = "";
-        receipt += ESC + "@"; 
-        receipt += ESC + "a" + "\x01"; 
-        receipt += (typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : "SEKAWAN COFFEE") + "\n";
-        receipt += (tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway') + LF;
-        receipt += "--------------------------------\n"; 
-        
-        receipt += ESC + "a" + "\x00"; 
-        receipt += "No   : " + tx.id + LF;
-        receipt += "Tgl  : " + new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) + LF;
-        receipt += "Bayar: " + (tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS') + LF;
-        receipt += "--------------------------------\n";
-        
-        tx.items.forEach(i => {
-           receipt += i.name + LF;
-           const qtyPrice = i.qty + "x " + formatRp(i.price);
-           const subtotal = formatRp(i.price * i.qty);
-           const spaceCount = Math.max(1, 32 - qtyPrice.length - subtotal.length);
-           receipt += qtyPrice + " ".repeat(spaceCount) + subtotal + LF;
-        });
-        
-        receipt += "--------------------------------\n";
-        receipt += "Total  : " + formatRp(tx.total).padStart(23) + LF;
-        // Hanya tampilkan Tunai & Kembali jika metode pembayarannya tunai
-        if (tx.paymentMethod === 'tunai') {
-          receipt += "Tunai  : " + formatRp(tx.cash || tx.total).padStart(23) + LF;
-          receipt += "Kembali: " + formatRp(tx.change || 0).padStart(23) + LF;
-        }
-        
-        receipt += ESC + "a" + "\x01"; 
-        receipt += "\nTerima Kasih\nSilakan Datang Kembali\n\n\n";
-        
-        const encoder = new TextEncoder();
-        const data = encoder.encode(receipt);
-        
+      if (ensurePrinterConnected()) {
         try {
-          // Perbaikan MTU BLE ke 20 byte & penggunaan method Web Bluetooth terbaru
-          for (let i = 0; i < data.length; i += 20) {
-            const chunk = data.slice(i, i + 20);
-            
-            // Cek properti characteristic untuk memilih metode write yang tepat
-            if (btCharacteristic.properties.writeWithoutResponse) {
-              await btCharacteristic.writeValueWithoutResponse(chunk);
-            } else {
-              await btCharacteristic.writeValueWithResponse(chunk);
-            }
-          }
-          notify('🖨️ Proses cetak selesai...');
+          await writeEscPosData(buildReceiptEscPos(tx));
+          notify(`🖨️ Struk ${getPrinterProfile().mm} mm selesai dicetak.`);
         } catch (error) {
-          console.error(error);
-          notify('Gagal mencetak! Coba koneksikan ulang printer.');
+          console.error('Receipt print error:', error);
+          btCharacteristic = null;
+          updatePrinterUI(false, 'Printer: Disconnect');
+          notify('❌ Gagal mencetak. Coba reconnect printer.');
         }
-
-      } else {
-        // FALLBACK: Jika printer Bluetooth TIDAK terhubung, gunakan cetak browser biasa
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
-        let itemsHTML = '';
-        tx.items.forEach(i => {
-            itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
-        });
-        
-        const html = `<html><head><title>Struk - ${tx.id}</title><style>@page { size: 58mm auto; margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 48mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .flex-between { display: flex; justify-content: space-between; }</style></head>
-        <body>
-          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE'}</div>
-          <div class="center" style="font-size: 10px; margin-bottom: 5px;">${tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway'}</div>
-          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
-          <div>No: ${tx.id}</div>
-          <div>Tgl: ${new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</div>
-          <div>Bayar: ${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'}</div>
-          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
-          ${itemsHTML}
-          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
-          <div class="flex-between bold"><span>Total</span><span>Rp ${tx.total.toLocaleString('id-ID')}</span></div>${tx.paymentMethod === 'tunai' ? `
-          <div class="flex-between"><span>Tunai</span><span>Rp ${(tx.cash || tx.total).toLocaleString('id-ID')}</span></div>
-          <div class="flex-between"><span>Kembali</span><span>Rp ${(tx.change || 0).toLocaleString('id-ID')}</span></div>
-          ` : ''}
-          <div style="border-top:1px dashed #000; margin:5px 0;"></div>
-          <div class="center" style="font-size: 10px; margin-top: 5px;">Terima Kasih<br>Silakan Datang Kembali</div>
-        </body></html>` + "<scr" + "ipt>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</scr" + "ipt>";
-        
-        printWindow.document.write(html);
-        printWindow.document.close();
+        return;
       }
+
+      // FALLBACK: cetak browser seperti sebelumnya, dengan ukuran kertas yang dipilih.
+      const profile = getPrinterProfile();
+      const printWindow = window.open('', '_blank', 'width=400,height=600');
+      let itemsHTML = '';
+      tx.items.forEach(i => {
+        itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><div style="flex:1; padding-right:5px;">${i.name}<br>${i.qty} x ${i.price.toLocaleString('id-ID')}</div><div style="text-align:right; align-self:flex-end;">${(i.qty * i.price).toLocaleString('id-ID')}</div></div>`;
+      });
+      const bodyWidth = profile.bodyWidthMm;
+      const html = `<html><head><title>Struk - ${tx.id}</title><style>@page{size:${profile.mm}mm auto;margin:0;}body{font-family:'Courier New',Courier,monospace;font-size:12px;width:${bodyWidth}mm;margin:0;padding:2mm;color:#000}.center{text-align:center}.bold{font-weight:bold}.flex-between{display:flex;justify-content:space-between}</style></head><body>
+        <div class="center bold" style="font-size:16px;margin-bottom:2px;">${typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE'}</div>
+        <div class="center" style="font-size:10px;margin-bottom:5px;">${tx.orderType === 'dine_in' ? 'Meja: ' + tx.table : 'Takeaway'}</div>
+        <div style="border-top:1px dashed #000;margin:5px 0"></div><div>No: ${tx.id}</div><div>Tgl: ${new Date(tx.date).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'})}</div><div>Bayar: ${tx.paymentMethod === 'tunai' ? 'Tunai' : 'QRIS'}</div>
+        <div style="border-top:1px dashed #000;margin:5px 0"></div>${itemsHTML}<div style="border-top:1px dashed #000;margin:5px 0"></div>
+        <div class="flex-between bold"><span>Total</span><span>Rp ${tx.total.toLocaleString('id-ID')}</span></div>${tx.paymentMethod === 'tunai' ? `<div class="flex-between"><span>Tunai</span><span>Rp ${(tx.cash||tx.total).toLocaleString('id-ID')}</span></div><div class="flex-between"><span>Kembali</span><span>Rp ${(tx.change||0).toLocaleString('id-ID')}</span></div>` : ''}
+        <div style="border-top:1px dashed #000;margin:5px 0"></div><div class="center" style="font-size:10px;margin-top:5px">Terima Kasih<br>Silakan Datang Kembali</div>
+      </body></html>` + '<scr' + 'ipt>window.onload=function(){window.print();setTimeout(function(){window.close()},500)};</scr' + 'ipt>';
+      printWindow.document.write(html);
+      printWindow.document.close();
     }
 
     async function printPreorder() {
       const { sum, count } = calculateCartTotal();
-      if (count === 0) {
-        notify('Belum ada pesanan yang dipilih!');
+      if (count === 0) { notify('Belum ada pesanan yang dipilih!'); return; }
+      loadPrinterPaperWidth();
+
+      if (ensurePrinterConnected()) {
+        try {
+          await writeEscPosData(buildCheckerEscPos());
+          notify(`🖨️ Checker ${getPrinterProfile().mm} mm sedang dicetak...`);
+        } catch (error) {
+          console.error('Checker print error:', error);
+          btCharacteristic = null;
+          updatePrinterUI(false, 'Printer: Disconnect');
+          notify('❌ Gagal mencetak checker. Coba reconnect printer.');
+        }
         return;
       }
 
+      // Fallback browser tetap dipertahankan.
       const orderLabel = orderType === 'dine_in' ? `DINE IN (MEJA ${orderTable})` : 'TAKEAWAY';
-      const now = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+      const now = new Date().toLocaleString('id-ID', { dateStyle:'short', timeStyle:'short' });
       const cashierName = currentShift ? currentShift.cashier : '-';
-
-      if (btCharacteristic) {
-        const ESC = "\x1B";
-        const LF = "\x0A";
-        
-        let receipt = "";
-        receipt += ESC + "@"; 
-        receipt += ESC + "a" + "\x01"; 
-        receipt += (typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : "SEKAWAN COFFEE") + "\n";
-        receipt += "STRUK PESANAN (CHECKER)\n";
-        receipt += ESC + "a" + "\x00"; 
-        receipt += "--------------------------------\n";
-        receipt += "Tipe : " + orderLabel + LF;
-        receipt += "Tgl  : " + now + LF;
-        receipt += "Kasir: " + cashierName + LF;
-        receipt += "--------------------------------\n";
-        
-        for (const [varId, qty] of Object.entries(cart)) {
-          const d = getVariantDetails(varId);
-          if (d) {
-            receipt += `- ${d.p.name}\n`;
-            receipt += `    x${qty}\n`; 
-          }
-        }
-        
-        receipt += "--------------------------------\n";
-        receipt += ESC + "a" + "\x01"; 
-        receipt += "\n\n\n"; 
-        
-        const encoder = new TextEncoder();
-        const data = encoder.encode(receipt);
-        
-        try {
-          // PERBAIKAN: Menggunakan await agar pengiriman data berurutan (chunking aman)
-          for (let i = 0; i < data.length; i += 50) {
-             await btCharacteristic.writeValue(data.slice(i, i + 50));
-          }
-          notify('🖨️ Checker pesanan sedang dicetak...');
-        } catch (error) {
-          console.error(error);
-          notify('Gagal mencetak checker! Coba koneksikan ulang printer.');
-        }
-      } 
-      else {
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
-        let itemsHTML = '';
-        for (const [varId, qty] of Object.entries(cart)) {
-          const d = getVariantDetails(varId);
-          if (d) {
-             itemsHTML += `<div style="display:flex; justify-content:space-between; margin-bottom: 4px; font-size:12px;"><span>- ${d.p.name}</span><strong style="font-size:14px;">x${qty}</strong></div>`;
-          }
-        }
-        
-        const html = `<html><head><title>Struk Preorder - ${orderLabel}</title><style>@page { margin: 0; } body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 48mm; margin: 0; padding: 2mm; color: #000; } .center { text-align: center; } .bold { font-weight: bold; } .dashed-line { border-top: 1px dashed #000; margin: 5px 0; }</style></head>
-        <body>
-          <div class="center bold" style="font-size: 16px; margin-bottom: 2px;">${typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE'}</div>
-          <div class="center bold" style="font-size: 11px; margin-bottom: 5px; border-bottom:1px solid #000; display:inline-block; padding: 4px;">STRUK PESANAN SEMENTARA</div>
-          <div class="center bold" style="font-size: 16px; margin: 8px 0;">${orderLabel}</div>
-          <div class="dashed-line"></div>
-          <div style="font-size: 10px;"><div>Tgl  : ${now}</div><div>Pramusaji: ${cashierName}</div></div>
-          <div class="dashed-line"></div>
-          ${itemsHTML}
-          <div class="dashed-line"></div>
-        </body></html>` + "<scr" + "ipt>window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };</scr" + "ipt>";
-        
-        printWindow.document.write(html);
-        printWindow.document.close();
+      const profile = getPrinterProfile();
+      const printWindow = window.open('', '_blank', 'width=400,height=600');
+      let itemsHTML = '';
+      for (const [varId, qty] of Object.entries(cart)) {
+        const d = getVariantDetails(varId);
+        if (d) itemsHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px"><span>- ${d.p.name}</span><strong style="font-size:14px">x${qty}</strong></div>`;
       }
+      const html = `<html><head><title>Struk Preorder - ${orderLabel}</title><style>@page{size:${profile.mm}mm auto;margin:0}body{font-family:'Courier New',Courier,monospace;font-size:12px;width:${profile.bodyWidthMm}mm;margin:0;padding:2mm;color:#000}.center{text-align:center}.bold{font-weight:bold}.dashed-line{border-top:1px dashed #000;margin:5px 0}</style></head><body>
+        <div class="center bold" style="font-size:16px;margin-bottom:2px">${typeof storeConfig !== 'undefined' ? storeConfig.name.toUpperCase() : 'SEKAWAN COFFEE'}</div>
+        <div class="center bold" style="font-size:11px;margin-bottom:5px;border-bottom:1px solid #000;display:inline-block;padding:4px">STRUK PESANAN SEMENTARA</div>
+        <div class="center bold" style="font-size:16px;margin:8px 0">${orderLabel}</div><div class="dashed-line"></div><div style="font-size:10px"><div>Tgl : ${now}</div><div>Pramusaji: ${cashierName}</div></div><div class="dashed-line"></div>${itemsHTML}<div class="dashed-line"></div>
+      </body></html>` + '<scr' + 'ipt>window.onload=function(){window.print();setTimeout(function(){window.close()},500)};</scr' + 'ipt>';
+      printWindow.document.write(html);
+      printWindow.document.close();
     }
-    
+
+    // Muat preferensi printer setelah DOM tersedia; tidak mengubah modul aplikasi lain.
+    setTimeout(loadPrinterPaperWidth, 0);
+
     function renderHistory() {
       document.getElementById('trx-badge-count').textContent = `${transactions.length} Data`;
       
