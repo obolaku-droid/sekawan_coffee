@@ -3872,7 +3872,9 @@ let selectedActiveBillId = null;
       if (!targetNum || targetNum <= 0) { notify('Nomor meja tidak valid!'); return; }
 
       // Cek apakah meja tujuan sudah terisi
-      const occupiedTarget = activeBills.find(b => b.type === 'dine_in' && b.table === targetNum);
+      const occupiedTarget = activeBills.find(
+  b => b.type === 'dine_in' && Number(b.table) === targetNum
+);
       if (occupiedTarget) {
         notify(`Meja ${targetNum} sedang terisi! Gunakan fitur Gabung Meja.`);
         return;
