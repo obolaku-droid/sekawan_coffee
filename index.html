@@ -3497,10 +3497,10 @@ if (count === 0) {
       document.getElementById('expense-container').innerHTML = html;
     }
 
-    function setLapPeriod(p) {
-      currentLapPeriod = p;
-      document.querySelectorAll('.lap-pill').forEach(el => el.classList.remove('active'));
-      event.target.classList.add('active');
+    function setLapPeriod(p, e) {
+  currentLapPeriod = p;
+  document.querySelectorAll('.lap-pill').forEach(el => el.classList.remove('active'));
+  if (e && e.currentTarget) e.currentTarget.classList.add('active');
       
       if(p === 'custom') {
         document.getElementById('custom-date-filter').style.display = 'flex';
