@@ -786,10 +786,11 @@
 
         <div id="privasi-content-view" class="hidden">
         
-          <div style="display:flex; gap:4px; background:#e2e8f0; padding:3px; border-radius:10px; margin-bottom:10px;">
+          <div style="display:flex; gap:4px; background:#e2e8f0; padding:3px; border-radius:10px; margin-bottom:10px; align-items:center;">
             <button id="btn-sub-laporan" class="privasi-tab-btn active" onclick="switchPrivasiSub('laporan')">Laporan</button>
             <button id="btn-sub-inventaris" class="privasi-tab-btn" onclick="switchPrivasiSub('inventaris')">Asset Inventaris</button>
             <button id="btn-sub-pengaturan" class="privasi-tab-btn" onclick="switchPrivasiSub('pengaturan')">Pengaturan</button>
+            <button onclick="logoutOwner()" style="margin-left:auto; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:7px; padding:5px 8px; font-size:9px; font-weight:800; cursor:pointer; white-space:nowrap;">🔒 Logout Owner</button>
           </div>
 
           <!-- 1. KONTAINER LAPORAN -->
@@ -1906,7 +1907,9 @@ if (data.ownerPin && !ownerPinHash) {
     }
 
     function switchTab(name, btn) {
-      if (name !== 'privasi' && !currentShift) { checkShiftStatus(); return; }
+      // Owner Mode: Owner yang sudah terautentikasi tidak dibatasi oleh status shift.
+      // Kasir tetap wajib memiliki shift untuk membuka menu operasional.
+      if (name !== 'privasi' && !currentShift && !isOwnerAuthenticated) { checkShiftStatus(); return; }
       
       document.getElementById('drawer-overlay').classList.remove('show');
       document.getElementById('drawer-menu').classList.remove('show');
@@ -2061,6 +2064,24 @@ if (data.ownerPin && !ownerPinHash) {
         return;
       }
       notify('PIN Salah!');
+    }
+
+    function logoutOwner() {
+      isOwnerAuthenticated = false;
+
+      const lockView = document.getElementById('privasi-lock-view');
+      const contentView = document.getElementById('privasi-content-view');
+      const pinInput = document.getElementById('owner-pin-input');
+      const modalPinInput = document.getElementById('modal-owner-pin-input');
+
+      if (lockView) lockView.classList.remove('hidden');
+      if (contentView) contentView.classList.add('hidden');
+      if (pinInput) pinInput.value = '';
+      if (modalPinInput) modalPinInput.value = '';
+
+      // Kembali ke layar pemilihan role tanpa menutup shift atau mengubah data transaksi.
+      document.getElementById('modal-role-select').classList.add('show');
+      notify('Owner berhasil logout.');
     }
 
     async function saveStoreSettings() {
