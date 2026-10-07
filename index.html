@@ -2465,13 +2465,13 @@ if (data.ownerPin && !ownerPinHash) {
       });
       
       document.getElementById('table-grid').innerHTML = htmlGrid;
-    }
+    
       const twBills = activeBills.filter(b => b.type === 'takeaway');
       document.getElementById('takeaway-list').innerHTML = twBills.length === 0 ? '<div style="font-size:10px; color:#94a3b8; text-align:center;">Kosong</div>' : twBills.map(b => `
         <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;" onclick="loadBill('${b.id}')">
           <span>Takeaway (${Object.keys(b.cartData).length} item)</span><strong>${formatRp(b.total)}</strong>
         </div>`).join('');
-    
+    }
 
     async function deleteCustomTable(tableName) {
       if(confirm(`Yakin ingin menghapus meja "${tableName}" permanen?`)) {
