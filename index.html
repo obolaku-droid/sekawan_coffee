@@ -2426,8 +2426,8 @@ if (data.ownerPin && !ownerPinHash) {
       
       if (!customTables || customTables.length === 0) {
         document.getElementById('table-grid').innerHTML = '<div style="font-size:10px; color:#94a3b8; text-align:center; padding:20px; grid-column:1/-1;">Belum ada meja. Silakan tambah di Area Pengaturan.</div>';
-        return;
-      }
+        } else {
+      
 
       customTables.forEach(tableName => {
         const bill = activeBills.find(b => b.type === 'dine_in' && String(b.table) === String(tableName));
@@ -2465,7 +2465,7 @@ if (data.ownerPin && !ownerPinHash) {
       });
       
       document.getElementById('table-grid').innerHTML = htmlGrid;
-    
+    }
       const twBills = activeBills.filter(b => b.type === 'takeaway');
       document.getElementById('takeaway-list').innerHTML = twBills.length === 0 ? '<div style="font-size:10px; color:#94a3b8; text-align:center;">Kosong</div>' : twBills.map(b => `
         <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;" onclick="loadBill('${b.id}')">
@@ -2597,17 +2597,16 @@ if (data.ownerPin && !ownerPinHash) {
 
     // 3. Fungsi Hitung Kembalian
     function calcChange() {
-      const checkboxes = document.querySelectorAll('.split-checkbox');
-      let total = 0;
-      checkboxes.forEach(cb => {
-        if (cb.checked) {
-          total += Number(cb.getAttribute('data-price')) * Number(cb.getAttribute('data-maxqty'));
-        }
-      });
+  const selected = getSelectedSplitCart();
+  let total = 0;
+  Object.entries(selected).forEach(([varId, qty]) => {
+    const cb = document.querySelector(`.split-checkbox[value="${varId}"]`);
+    total += Number(cb?.getAttribute('data-price') || 0) * qty;
+  });
 
-      const cash = parseNumeric(document.getElementById('cash-given-input').value);
-      document.getElementById('change-display').textContent = formatRp(Math.max(0, cash - total));
-    }
+  const cash = parseNumeric(document.getElementById('cash-given-input').value);
+  document.getElementById('change-display').textContent = formatRp(Math.max(0, cash - total));
+}
 
     // Fungsi untuk Menyimpan Meja (Simpan Pesanan Tanpa Bayar)
     async function saveActiveOrder() {
@@ -3501,15 +3500,20 @@ if (count === 0) {
     function setLapPeriod(p, btn) {
   currentLapPeriod = p;
   document.querySelectorAll('.lap-pill').forEach(el => el.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-      
-      if(p === 'custom') {
-        document.getElementById('custom-date-filter').style.display = 'flex';
-      } else {
-        document.getElementById('custom-date-filter').style.display = 'none';
-        renderReports();
-      }
-    }
+  
+  // Deteksi otomatis tombol yang diklik:
+  const targetBtn = btn || (window.event && (window.event.currentTarget || window.event.target));
+  if (targetBtn && targetBtn.classList) {
+    targetBtn.classList.add('active');
+  }
+  
+  if (p === 'custom') {
+    document.getElementById('custom-date-filter').style.display = 'flex';
+  } else {
+    document.getElementById('custom-date-filter').style.display = 'none';
+    renderReports();
+  }
+}
 
     function isSameDay(d1, d2) { return d1.toDateString() === d2.toDateString(); }
     function isSameWeek(d1, d2) { return Math.abs(d1 - d2) / (1000 * 60 * 60 * 24) <= 7; }
